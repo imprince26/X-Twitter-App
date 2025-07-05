@@ -25,7 +25,7 @@ const userSchema = new Schema<IUser>({
 });
 
 // Indexes for performance
-userSchema.index({ clerkId: 1 });
+// userSchema.index({ clerkId: 1 });
 userSchema.index({ username: 'text', name: 'text' }); // For search
 
 export const User = model<IUser>('User', userSchema);

@@ -1,74 +1,45 @@
 import { Request, Response } from 'express';
-import { Message } from '../models/message';
+import { Notification } from '../models/notifications';
 import logger from '../config/logger';
 
-export const sendMessage = async (req: Request, res: Response): Promise<void> => {
+export const getNotifications = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { receiverId, text } = req.body;
     const userId = req.auth.userId;
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    const message = await Message.create({ senderId: userId, receiverId, text });
-    logger.info(`Message sent by user ${userId} to ${receiverId}: ${message._id}`);
-    res.status(201).json(message);
+    const notifications = await Notification.find({ userId })
+      .populate('fromUserId')
+      .populate('postId')
+      .sort({ createdAt: -1 });
+    res.json(notifications);
   } catch (error) {
-    logger.error('Send message error:', error);
-    res.status(500).json({ error: 'Failed to send message' });
+    logger.error('Get notifications error:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
   }
 };
 
-export const getConversation = async (req: Request, res: Response): Promise<void> => {
+export const markNotificationAsRead = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.auth.userId;
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    const messages = await Message.find({
-      $or: [
-        { senderId: userId, receiverId: req.params.userId },
-        { senderId: req.params.userId, receiverId: userId },
-      ],
-    }).sort({ createdAt: 1 });
-    res.json(messages);
-  } catch (error) {
-    logger.error('Get conversation error:', error);
-    res.status(500).json({ error: 'Failed to fetch messages' });
-  }
-};
-
-export const getConversations = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.auth.userId;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, userId },
+      { read: true },
+      { new: true }
+    );
+    if (!notification) {
+      res.status(404).json({ error: 'Notification not found' });
       return;
     }
-    const conversations = await Message.aggregate([
-      {
-        $match: {
-          $or: [{ senderId: userId }, { receiverId: userId }],
-        },
-      },
-      { $sort: { createdAt: -1 } },
-      {
-        $group: {
-          _id: {
-            $cond: [
-              { $eq: ['$senderId', userId] },
-              '$receiverId',
-              '$senderId',
-            ],
-          },
-          lastMessage: { $first: '$$ROOT' },
-        },
-      },
-    ]);
-    res.json(conversations);
+    logger.info(`Notification marked as read by user ${userId}: ${req.params.id}`);
+    res.json(notification);
   } catch (error) {
-    logger.error('Get conversations error:', error);
-    res.status(500).json({ error: 'Failed to fetch conversations' });
+    logger.error('Mark notification as read error:', error);
+    res.status(500).json({ error: 'Failed to update notification' });
   }
 };
