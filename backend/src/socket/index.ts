@@ -24,6 +24,7 @@ export const initializeSocket = (io: Server): void => {
         logger.error('Socket send message error:', error);
       }
     });
+    
 
     socket.on('disconnect', () => {
       logger.info(`User disconnected: ${socket.id}`);

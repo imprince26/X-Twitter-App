@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { Server } from 'socket.io';
 import http from 'http';
 import { connectDB } from './config/db';
+import { clerkMiddleware } from '@clerk/express';
 
 import authRoutes from './routes/auth';
 import postsRoutes from './routes/posts';
@@ -35,6 +36,7 @@ connectDB();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(clerkMiddleware()); // Add Clerk middleware globally
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
