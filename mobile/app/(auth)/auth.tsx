@@ -20,25 +20,32 @@ const AuthHome = () => {
                 </Text>
             </View>
             <View className='flex flex-col gap-4 my-8'>
-                <TouchableOpacity className='flex flex-row justify-center bg-transparent border border-gray-200 dark:border-none dark:bg-background-light rounded-full py-3'>
+
+                <TouchableOpacity className='flex flex-row justify-center bg-transparent border border-gray-200 dark:border-none dark:bg-background-light rounded-full py-3' activeOpacity={0.7}>
                     <AntDesign name="google" size={24} color='black' />
                     <Text className='text-lg ml-2 text-foreground-primary-light font-semibold'>
                         Continue with Google
                     </Text>
                 </TouchableOpacity>
+
                 <View className='relative h-[1px] bg-gray-200 dark:bg-gray-700'>
                     <Text className='absolute left-1/2 -translate-x-1/2 top-[-0.75rem] bg-white dark:bg-gray-900 text-sm text-gray-500 dark:text-gray-400'>
                         or
                     </Text>
                 </View>
-                <TouchableOpacity className='bg-background-dark dark:bg-background-light rounded-full py-3'>
-                    <Text className='text-lg mx-auto text-foreground-primary-dark dark:text-foreground-primary-light font-semibold'>
-                        Create account
-                    </Text>
-                </TouchableOpacity>
+
+                <Link href={'/register'} asChild>
+                    <TouchableOpacity className='bg-background-dark dark:bg-background-light rounded-full py-3' activeOpacity={0.7}>
+                        <Text className='text-lg mx-auto text-foreground-primary-dark dark:text-foreground-primary-light font-semibold'>
+                            Create account
+                        </Text>
+                    </TouchableOpacity>
+                </Link>
+
                 <Text className='text-foreground-tertiary-light dark:text-foreground-tertiary-dark mb-4 mt-2'>
                     By signing up, you agree to our <Text className='text-x-blue'>Terms</Text>, <Text className='text-x-blue'>Privacy Policy</Text> and <Text className='text-x-blue'>Cookie Use</Text>.
                 </Text>
+
                 <Text className='text-[1.1rem] text-foreground-tertiary-light dark:text-foreground-tertiary-dark'>
                     Have an account already? <Link href={'/login'} className='text-x-blue'>Log in</Link>
                 </Text>

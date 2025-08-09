@@ -11,23 +11,9 @@ const Login = () => {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
     const [input, setInput] = useState('');
-    const [isFocused, setIsFocused] = useState(false);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const animatedValue = useRef(new Animated.Value(0)).current;
     const bottomViewAnimated = useRef(new Animated.Value(0)).current;
-
-    // Theme colors
-    const colors = {
-        background: isDark ? '#000000' : '#FFFFFF',
-        text: isDark ? '#FFFFFF' : '#0F1419',
-        textSecondary: isDark ? '#E7E9EA' : '#536471',
-        border: isDark ? '#33363f' : '#CFD9DE',
-        borderFocused: '#1DA1F2',
-        placeholder: isDark ? '#71767B' : '#536471',
-        buttonDisabled: isDark ? '#0F2222' : '#E7E9EA',
-        buttonDisabledText: isDark ? '#71767B' : '#536471',
-        iconColor: isDark ? '#FFFFFF' : '#0F1419',
-    };
 
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener(
@@ -62,41 +48,14 @@ const Login = () => {
 
     useEffect(() => {
         Animated.timing(animatedValue, {
-            toValue: isFocused || input ? 1 : 0,
+            toValue: input ? 1 : 0,
             duration: 200,
             useNativeDriver: false,
         }).start();
-    }, [isFocused, input]);
-
-    const handleFocus = () => {
-        setIsFocused(true);
-    };
-
-    const handleBlur = () => {
-        setIsFocused(false);
-    };
+    }, [input, animatedValue]);
 
     const dismissKeyboard = () => {
         Keyboard.dismiss();
-    };
-
-    const labelStyle = {
-        position: 'absolute' as const,
-        left: 16,
-        top: animatedValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [20, -8],
-        }),
-        fontSize: animatedValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [18, 14],
-        }),
-        color: animatedValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [colors.placeholder, isFocused ? colors.borderFocused : colors.placeholder],
-        }),
-        backgroundColor: colors.background,
-        paddingHorizontal: 4,
     };
 
     return (
@@ -127,7 +86,7 @@ const Login = () => {
 
                             {/* Input field with animated label */}
                             <View className=' mb-8'>
-                                <CustomInput labelText='Phone, email, or username' value={input} setValue={setInput} />
+                                <CustomInput labelText='Email or username' value={input} setValue={setInput} />
                             </View>
                         </View>
                     </View>
@@ -140,19 +99,21 @@ const Login = () => {
                         marginBottom: bottomViewAnimated,
                     }}
                 >
-                    <TouchableOpacity
-                        className='bg-transparent border border-gray-300 dark:border-gray-200/80 rounded-full px-6 py-3'
-                        activeOpacity={0.7}
-                    >
-                        <Text
-                            className='text-base font-bold text-gray-800 dark:text-gray-200'
+                    <Link href='/ForgotPassword' asChild>
+                        <TouchableOpacity
+                            className='bg-transparent border border-gray-300 dark:border-gray-200/80 rounded-full px-6 py-3'
+                            activeOpacity={0.7}
                         >
-                            Forgot password?
-                        </Text>
-                    </TouchableOpacity>
+                            <Text
+                                className='text-base font-bold text-gray-800 dark:text-gray-200'
+                            >
+                                Forgot password?
+                            </Text>
+                        </TouchableOpacity>
+                    </Link>
 
                     <TouchableOpacity
-                        className={cn('rounded-full px-6 py-3', input.length >= 1 ? 'bg-gray-900 dark:bg-gray-100 opacity-100' : 'dark:bg-gray-100 bg-gray-950/70 opacity-50')}
+                        className={cn('rounded-full px-6 py-3', input.length >= 1 ? 'bg-gray-900 dark:bg-gray-100 opacity-100' : 'dark:bg-gray-100 bg-gray-950 opacity-50')}
                         activeOpacity={0.8}
                         disabled={input.length < 1}
                     >

@@ -10,6 +10,7 @@ interface CustomInputProps {
     setValue: (value: string) => void;
     multiline?: boolean;
     numberOfLines?: number;
+    className?: string;
 }
 
 const CustomInput = ({
@@ -19,7 +20,8 @@ const CustomInput = ({
     value,
     setValue,
     multiline = false,
-    numberOfLines = 1
+    numberOfLines = 1,
+    className = ''
 }: CustomInputProps) => {
     const { colorScheme } = useColorScheme();
     const isDark = colorScheme === 'dark';
@@ -74,7 +76,7 @@ const CustomInput = ({
     };
 
     return (
-        <View className='relative'>
+        <View className={`relative ${className} mt-6`}>
             <View
                 className='border rounded-lg px-4'
                 style={{
