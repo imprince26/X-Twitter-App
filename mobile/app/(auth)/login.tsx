@@ -5,6 +5,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useColorScheme } from 'nativewind';
 import cn from 'clsx';
 import { Link } from 'expo-router';
+import CustomInput from '@/components/CustomInput';
 
 const Login = () => {
     const { colorScheme } = useColorScheme();
@@ -101,8 +102,8 @@ const Login = () => {
     return (
         <TouchableWithoutFeedback onPress={dismissKeyboard}>
             <View className='flex-1'>
-                
-                <KeyboardAvoidingView 
+
+                <KeyboardAvoidingView
                     className='flex-1'
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 >
@@ -110,7 +111,7 @@ const Login = () => {
                         {/* Header with close and X icons */}
                         <View className='flex flex-row items-center justify-between mt-4 mb-8'>
                             <Link href={'/auth'}>
-                            <AntDesign name='close' size={24} color={isDark ? 'white' : 'black'} />
+                                <AntDesign name='close' size={24} color={isDark ? 'white' : 'black'} />
                             </Link>
                             <FontAwesome6 name='x-twitter' size={24} color={isDark ? 'white' : 'black'} />
                             <View style={{ width: 24 }} />
@@ -118,72 +119,45 @@ const Login = () => {
 
                         {/* Main content */}
                         <View className='flex-1'>
-                            <Text 
-                                className='text-3xl font-bold text-gray-700 dark:text-gray-300 mb-8 leading-10'
+                            <Text
+                                className='text-3xl font-bold text-foreground-secondary-light dark:text-foreground-secondary-dark mb-8 leading-10'
                             >
                                 To get started, first enter your phone, email, or @username
                             </Text>
 
                             {/* Input field with animated label */}
-                            <View className='relative mb-8'>
-                                <View 
-                                    className='border rounded-lg px-4 py-2'
-                                    style={{
-                                        borderColor: isFocused 
-                                            ? colors.borderFocused
-                                            : colors.border,
-                                        borderWidth: isFocused ? 2 : 1,
-                                    }}
-                                >
-                                    <TextInput
-                                        value={input}
-                                        onChangeText={setInput}
-                                        onFocus={handleFocus}
-                                        onBlur={handleBlur}
-                                        className='w-full text-lg'
-                                        style={{ 
-                                            // fontSize: 18, 
-                                            // paddingTop: isFocused || input ? 8 : 0,
-                                            // outlineStyle: 'none',
-                                            color: colors.text
-                                        }}
-                                        selectionColor={colors.borderFocused}
-                                        placeholderTextColor={colors.placeholder}
-                                    />
-                                </View>
-                                <Animated.Text style={labelStyle}>
-                                    Phone, email, or username
-                                </Animated.Text>
+                            <View className=' mb-8'>
+                                <CustomInput labelText='Phone, email, or username' value={input} setValue={setInput} />
                             </View>
                         </View>
                     </View>
                 </KeyboardAvoidingView>
 
                 {/* Bottom section - positioned above keyboard */}
-                <Animated.View 
+                <Animated.View
                     className='flex flex-row justify-between items-center px-6 py-4 mb-40 '
-                      style={{
+                    style={{
                         marginBottom: bottomViewAnimated,
                     }}
                 >
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         className='bg-transparent border border-gray-300 dark:border-gray-200/80 rounded-full px-6 py-3'
                         activeOpacity={0.7}
                     >
-                        <Text 
+                        <Text
                             className='text-base font-bold text-gray-800 dark:text-gray-200'
                         >
                             Forgot password?
                         </Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
-                        className={cn('rounded-full px-6 py-3',input.length >= 1 ? 'bg-gray-900 dark:bg-gray-100 opacity-100' : 'dark:bg-gray-100 bg-gray-950/70 opacity-50')}
+                    <TouchableOpacity
+                        className={cn('rounded-full px-6 py-3', input.length >= 1 ? 'bg-gray-900 dark:bg-gray-100 opacity-100' : 'dark:bg-gray-100 bg-gray-950/70 opacity-50')}
                         activeOpacity={0.8}
                         disabled={input.length < 1}
                     >
-                        <Text 
-                            className={cn('text-base font-bold',input.length >= 1 ? 'dark:text-gray-900 text-gray-200' : 'text-gray-800')}
+                        <Text
+                            className={cn('text-base font-bold', input.length >= 1 ? 'dark:text-gray-900 text-gray-200' : 'text-gray-800')}
                         >
                             Next
                         </Text>

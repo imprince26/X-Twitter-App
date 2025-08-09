@@ -15,7 +15,7 @@ const AuthHome = () => {
                 <FontAwesome6 name="x-twitter" size={24} color={isDarkMode ? 'white' : 'black'} />
             </View>
             <View>
-                <Text className='text-4xl text-foreground-primary-light dark:text-foreground-primary-dark font-bold'>
+                <Text className='text-4xl text-foreground-secondary-light dark:text-foreground-secondary-dark font-bold'>
                     See what&apos;s happening in the world right now.
                 </Text>
             </View>
