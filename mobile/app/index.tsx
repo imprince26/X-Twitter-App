@@ -7,7 +7,7 @@ const Home = () => {
 
   if (!authenticated) {
     return (
-      <Redirect href="/login" />
+      <Redirect href="/auth" />
     )
   }
 

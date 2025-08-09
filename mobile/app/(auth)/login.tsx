@@ -4,6 +4,7 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useColorScheme } from 'nativewind';
 import cn from 'clsx';
+import { Link } from 'expo-router';
 
 const Login = () => {
     const { colorScheme } = useColorScheme();
@@ -108,8 +109,10 @@ const Login = () => {
                     <View className='flex-1 px-6'>
                         {/* Header with close and X icons */}
                         <View className='flex flex-row items-center justify-between mt-4 mb-8'>
+                            <Link href={'/auth'}>
                             <AntDesign name='close' size={24} color={isDark ? 'white' : 'black'} />
-                            <FontAwesome6 name='x-twitter' size={28} color={isDark ? 'white' : 'black'} />
+                            </Link>
+                            <FontAwesome6 name='x-twitter' size={24} color={isDark ? 'white' : 'black'} />
                             <View style={{ width: 24 }} />
                         </View>
 
