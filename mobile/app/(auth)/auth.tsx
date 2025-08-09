@@ -15,14 +15,14 @@ const AuthHome = () => {
                 <FontAwesome6 name="x-twitter" size={24} color={isDarkMode ? 'white' : 'black'} />
             </View>
             <View>
-                <Text className='text-4xl text-black dark:text-gray-300 font-bold'>
+                <Text className='text-4xl text-foreground-primary-light dark:text-foreground-primary-dark font-bold'>
                     See what&apos;s happening in the world right now.
                 </Text>
             </View>
             <View className='flex flex-col gap-4 my-8'>
-                <TouchableOpacity className='flex flex-row  justify-center bg-gray-600 dark:bg-white rounded-full py-3'>
-                    <AntDesign name="google" size={24} color="black" />
-                    <Text className='text-lg ml-2 text-gray-300 dark:text-gray-600 font-semibold'>
+                <TouchableOpacity className='flex flex-row justify-center bg-transparent border border-gray-200 dark:border-none dark:bg-background-light rounded-full py-3'>
+                    <AntDesign name="google" size={24} color='black' />
+                    <Text className='text-lg ml-2 text-foreground-primary-light font-semibold'>
                         Continue with Google
                     </Text>
                 </TouchableOpacity>
@@ -31,16 +31,16 @@ const AuthHome = () => {
                         or
                     </Text>
                 </View>
-                <TouchableOpacity className='bg-gray-600 dark:bg-white rounded-full py-3'>
-                    <Text className='text-lg mx-auto text-gray-300 dark:text-gray-600 font-semibold'>
+                <TouchableOpacity className='bg-background-dark dark:bg-background-light rounded-full py-3'>
+                    <Text className='text-lg mx-auto text-foreground-primary-dark dark:text-foreground-primary-light font-semibold'>
                         Create account
                     </Text>
                 </TouchableOpacity>
-                <Text className='text-gray-500 dark:text-gray-500 mb-4 mt-2'>
-                    By signing up, you agree to our <Text className='text-sky-500'>Terms</Text>, <Text className='text-sky-500'>Privacy Policy</Text> and <Text className='text-sky-500'>Cookie Use</Text>.
+                <Text className='text-foreground-tertiary-light dark:text-foreground-tertiary-dark mb-4 mt-2'>
+                    By signing up, you agree to our <Text className='text-x-blue'>Terms</Text>, <Text className='text-x-blue'>Privacy Policy</Text> and <Text className='text-x-blue'>Cookie Use</Text>.
                 </Text>
-                <Text className='text-[1.1rem] text-gray-500 dark:text-gray-500 '>
-                    Have an account already? <Link href={'/login'} className='text-sky-500'>Log in</Link>
+                <Text className='text-[1.1rem] text-foreground-tertiary-light dark:text-foreground-tertiary-dark'>
+                    Have an account already? <Link href={'/login'} className='text-x-blue'>Log in</Link>
                 </Text>
             </View>
 
