@@ -30,7 +30,10 @@ const io = new Server(server, {
 connectDB();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  credentials: true,
+}));
 app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

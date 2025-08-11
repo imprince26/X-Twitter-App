@@ -6,6 +6,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react'
 import { useColorScheme } from 'nativewind';
+import { Link } from 'expo-router';
 
 // Dummy data for X posts
 const dummyPosts = [
@@ -263,9 +264,11 @@ const Home = () => {
         <AntDesign name="user" size={24} color={isDark ? 'white' : 'black'} />
       </TouchableOpacity>
       <FontAwesome6 name='x-twitter' size={28} color={isDark ? 'white' : 'black'} />
-      <TouchableOpacity>
+      <Link href="/auth" asChild>
+      <TouchableOpacity >
         <Feather name="settings" size={24} color={isDark ? 'white' : 'black'} />
       </TouchableOpacity>
+      </Link>
     </View>
   );
 

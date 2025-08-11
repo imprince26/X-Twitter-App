@@ -1,5 +1,5 @@
-import { Slot,Redirect,Stack } from 'expo-router';
-import { Suspense, useState } from 'react';
+import { Slot } from 'expo-router';
+import { Suspense, useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { useColorScheme } from 'nativewind';
@@ -9,25 +9,36 @@ import './global.css';
 
 export default function RootLayout() {
   const { colorScheme } = useColorScheme();
+  const [authenticated, setAuthenticated] = useState(false);
 
-    const [authenticated, setAuthenticated] = useState(true);
-  
-    if (!authenticated) {
-      return (
-        <Redirect href="/auth" />
-      )
-    }
+  // useEffect(() => {
+  //   let mounted = true;
+  //   (async () => {
+  //     try {
+  //       const token = await AsyncStorage.getItem('TwitterToken');
+  //       if (!mounted) return;
+  //       setAuthenticated(!!token);
+  //     } finally {
+  //       if (mounted) setChecking(false);
+  //     }
+  //   })();
+  //   return () => {
+  //     mounted = false;
+  //   };
+  // }, []);
+
+  // if (checking) return <XLoader />;
+
+  // if (!authenticated) {
+  //   return <Redirect href="/auth" />;
+  // }
 
   return (
-    <SafeAreaView className={`flex-1 ${
-      colorScheme === 'dark' ? 'bg-black' : 'bg-white'
-    }`}>
+    <SafeAreaView className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-white'}`}>
       <Suspense fallback={<XLoader />}>
-        <View className={`flex-1 ${
-          colorScheme === 'dark' ? 'bg-black' : 'bg-x-bg-light'
-        }`}>
+        <View className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-x-bg-light'}`}>
           <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          <Slot/>
+          <Slot />
         </View>
       </Suspense>
     </SafeAreaView>

@@ -1,122 +1,82 @@
-import { View, Text, Animated, TextInput } from 'react-native'
-import React, { useRef, useState, useEffect } from 'react'
-import { useColorScheme } from 'nativewind';
+import { View, Text, TextInput, TextInputProps } from 'react-native'
+import React, { useState } from 'react'
+import { useColorScheme } from 'nativewind'
 
-interface CustomInputProps {
-    placeholder?: string;
-    secureTextEntry?: boolean;
-    labelText?: string;
-    value: string;
-    setValue: (value: string) => void;
-    multiline?: boolean;
-    numberOfLines?: number;
-    className?: string;
+interface CustomInputProps extends Omit<TextInputProps, 'value' | 'onChangeText'> {
+  labelText: string
+  value: string
+  setValue: (value: string) => void
+  error?: string
+  onBlur?: () => void
 }
 
-const CustomInput = ({
-    placeholder,
-    secureTextEntry = false,
-    labelText,
-    value,
-    setValue,
-    multiline = false,
-    numberOfLines = 1,
-    className = ''
-}: CustomInputProps) => {
-    const { colorScheme } = useColorScheme();
-    const isDark = colorScheme === 'dark';
-    const [isFocused, setIsFocused] = useState(false);
-    const animatedValue = useRef(new Animated.Value(0)).current;
+const CustomInput: React.FC<CustomInputProps> = ({ 
+  labelText, 
+  value, 
+  setValue, 
+  error,
+  onBlur,
+  ...textInputProps 
+}) => {
+  const { colorScheme } = useColorScheme()
+  const isDark = colorScheme === 'dark'
+  const [isFocused, setIsFocused] = useState(false)
 
-    // X (Twitter) exact colors
-    const colors = {
-        background: isDark ? '#000000' : '#FFFFFF',
-        text: isDark ? '#FFFFFF' : '#0F1419',
-        textSecondary: isDark ? '#E7E9EA' : '#536471',
-        border: isDark ? '#2F3336' : '#CFD9DE',
-        borderFocused: '#1DA1F2',
-        placeholder: isDark ? '#71767B' : '#536471',
-        error: '#F4212E',
-    };
+  const handleFocus = () => {
+    setIsFocused(true)
+  }
 
-    useEffect(() => {
-        Animated.timing(animatedValue, {
-            toValue: isFocused || value ? 1 : 0,
-            duration: 200,
-            useNativeDriver: false,
-        }).start();
-    }, [isFocused, value]);
+  const handleBlur = () => {
+    setIsFocused(false)
+    onBlur?.()
+  }
 
-    const handleFocus = () => {
-        setIsFocused(true);
-    };
+  const hasValue = Boolean(value?.length)
+  const hasError = !!error
 
-    const handleBlur = () => {
-        setIsFocused(false);
-    };
-
-    const labelStyle = {
-        position: 'absolute' as const,
-        left: 16,
-        top: animatedValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [20, -8],
-        }),
-        fontSize: animatedValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [18, 14],
-        }),
-        color: animatedValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [colors.placeholder, isFocused ? colors.borderFocused : colors.placeholder],
-        }),
-        backgroundColor: colors.background,
-        paddingHorizontal: 4,
-        zIndex: 1,
-    };
-
-    return (
-        <View className={`relative ${className} mt-6`}>
-            <View
-                className='border rounded-lg px-4'
-                style={{
-                    borderColor: isFocused
-                        ? colors.borderFocused
-                        : colors.border,
-                    borderWidth: isFocused ? 2 : 1,
-                    paddingVertical: multiline ? 16 : 12,
-                    minHeight: multiline ? (numberOfLines * 24 + 32) : 56,
-                }}
-            >
-                <TextInput
-                    value={value}
-                    onChangeText={setValue}
-                    onFocus={handleFocus}
-                    onBlur={handleBlur}
-                    secureTextEntry={secureTextEntry}
-                    multiline={multiline}
-                    numberOfLines={numberOfLines}
-                    className='w-full text-lg'
-                    style={{
-                        fontSize: 18,
-                        paddingTop: isFocused || value ? 8 : 0,
-                        color: colors.text,
-                        textAlignVertical: multiline ? 'top' : 'center',
-                    }}
-                    selectionColor={colors.borderFocused}
-                    placeholderTextColor={colors.placeholder}
-                    placeholder={!isFocused && !value ? placeholder : ''}
-                />
-            </View>
-
-            {/* Animated Label */}
-            {labelText && (
-                <Animated.Text style={labelStyle}>
-                    {labelText}
-                </Animated.Text>
-            )}
-        </View>
-    )
+  return (
+    <View className='mb-4'>
+      <View className={`relative border-2 rounded-md ${
+        hasError 
+          ? 'border-red-500' 
+          : isFocused 
+            ? (isDark ? 'border-blue-400' : 'border-blue-500')
+            : (isDark ? 'border-gray-600' : 'border-gray-300')
+      }`}>
+        <Text className={`absolute left-3 px-1 text-sm z-10 ${
+          isFocused || hasValue 
+            ? `top-[-10px] ${
+                hasError 
+                  ? 'text-red-500' 
+                  : isFocused 
+                    ? (isDark ? 'text-blue-400' : 'text-blue-500')
+                    : (isDark ? 'text-gray-400' : 'text-gray-600')
+              } ${isDark ? 'bg-black' : 'bg-white'}`
+            : `top-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`
+        }`}>
+          {labelText}
+        </Text>
+        
+       <TextInput
+          className={`px-3 py-4 text-base ${
+            isDark ? 'text-white bg-black' : 'text-black bg-white'
+          }`}
+          value={value ?? ''} // guard undefined
+          onChangeText={setValue}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          placeholderTextColor={isDark ? '#71767B' : '#536471'}
+          {...textInputProps}
+        />
+      </View>
+      
+      {hasError && (
+        <Text className='text-red-500 text-sm mt-1 ml-3'>
+          {error}
+        </Text>
+      )}
+    </View>
+  )
 }
 
 export default CustomInput
