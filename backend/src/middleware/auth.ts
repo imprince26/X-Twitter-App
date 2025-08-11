@@ -2,12 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User, IUser } from '../models/userModel';
 
-// Extend Request interface for authenticated requests
 interface AuthenticatedRequest extends Request {
   user?: IUser;
 }
 
-// JWT Token payload interface
 interface JWTPayload {
   id: string;
   username: string;
@@ -18,7 +16,6 @@ interface JWTPayload {
   exp?: number;
 }
 
-// Helper function to get JWT secret with validation
 const getJWTSecret = (): string => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -27,7 +24,6 @@ const getJWTSecret = (): string => {
   return secret;
 };
 
-// Helper function to verify JWT token
 const verifyToken = (token: string): JWTPayload => {
   return jwt.verify(token, getJWTSecret(), {
     issuer: 'x-app',
@@ -35,8 +31,6 @@ const verifyToken = (token: string): JWTPayload => {
   }) as JWTPayload;
 };
 
-// @desc    Authenticate user middleware
-// @access  Private
 export const authenticate = async (
   req: AuthenticatedRequest, 
   res: Response, 
@@ -134,8 +128,6 @@ export const authenticate = async (
   }
 };
 
-// @desc    Admin authentication middleware
-// @access  Private (Admin only)
 export const adminAuth = async (
   req: AuthenticatedRequest, 
   res: Response, 
@@ -154,8 +146,6 @@ export const adminAuth = async (
   });
 };
 
-// @desc    Moderator authentication middleware  
-// @access  Private (Moderator or Admin)
 export const moderatorAuth = async (
   req: AuthenticatedRequest, 
   res: Response, 
@@ -174,8 +164,6 @@ export const moderatorAuth = async (
   });
 };
 
-// @desc    Email verification check middleware
-// @access  Private (Email verified users only)
 export const requireEmailVerification = async (
   req: AuthenticatedRequest, 
   res: Response, 
@@ -194,8 +182,6 @@ export const requireEmailVerification = async (
   });
 };
 
-// @desc    Optional authentication middleware (doesn't fail if no token)
-// @access  Public/Private
 export const optionalAuth = async (
   req: AuthenticatedRequest, 
   res: Response, 
@@ -230,7 +216,6 @@ export const optionalAuth = async (
   }
 };
 
-// Export all middleware functions
 export default {
   authenticate,
   adminAuth,

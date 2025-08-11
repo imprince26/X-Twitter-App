@@ -4,6 +4,10 @@ import jwt from 'jsonwebtoken';
 import validator from 'validator';
 
 export interface IUser extends Document {
+
+  // User ID
+  _id: string;
+
   // Basic Information
   username: string;
   email: string;

@@ -6,7 +6,7 @@ interface PasswordChangedEmailProps {
   username: string;
   ipAddress: string;
   userAgent?: string;
-  location?: string;
+  location?: string | string[];
   baseUrl?: string;
 }
 

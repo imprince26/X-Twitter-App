@@ -1,25 +1,21 @@
-import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-import { User, IUser } from '../models/userModel';
+import { Request, Response } from "express";
+import jwt from "jsonwebtoken";
+import { User, IUser } from "../models/userModel";
 import {
   sendWelcomeEmail,
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
-  sendLoginAlertEmail
-} from '../email/emailService';
-import 'dotenv/config';
-import { parseUserAgent } from '../utils/userAgentParser';
-import requestIP from 'request-ip';
+  sendLoginAlertEmail,
+} from "../email/emailService";
+import "dotenv/config";
+import { parseUserAgent } from "../utils/userAgentParser";
+import requestIP from "request-ip";
 
-// Extend Request interface for authenticated requests
 interface AuthenticatedRequest extends Request {
   user?: IUser;
 }
 
-// JWT Token payload interface
 interface JWTPayload {
   id: string;
   username: string;
@@ -32,23 +28,22 @@ interface JWTPayload {
 
 interface VerificationTokenPayload {
   userId: string;
-  type: 'email-verification';
+  type: "email-verification";
   iat?: number;
   exp?: number;
 }
 
 interface PasswordResetTokenPayload {
   userId: string;
-  type: 'password-reset';
+  type: "password-reset";
   iat?: number;
   exp?: number;
 }
 
-// Helper function to get JWT secret with validation
 const getJWTSecret = (): string => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error('JWT_SECRET environment variable is not set');
+    throw new Error("JWT_SECRET environment variable is not set");
   }
   return secret;
 };
@@ -60,128 +55,128 @@ const generateToken = (user: IUser): string => {
     username: user.username,
     email: user.email,
     isAdmin: user.isAdmin || false,
-    isModerator: user.isModerator || false
+    isModerator: user.isModerator || false,
   };
 
   return jwt.sign(payload, getJWTSecret(), {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    issuer: 'x-app',
-    audience: 'x-users'
+    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+    issuer: "x-app",
+    audience: "x-users",
   });
 };
 
-// Helper function to generate email verification token
 const generateEmailVerificationToken = (userId: string): string => {
   const payload: VerificationTokenPayload = {
     userId,
-    type: 'email-verification'
+    type: "email-verification",
   };
 
   return jwt.sign(payload, getJWTSecret(), {
-    expiresIn: '24h',
-    issuer: 'x-app',
-    audience: 'x-users'
+    expiresIn: "24h",
+    issuer: "x-app",
+    audience: "x-users",
   });
 };
 
-// Helper function to generate password reset token
 const generatePasswordResetToken = (userId: string): string => {
   const payload: PasswordResetTokenPayload = {
     userId,
-    type: 'password-reset'
+    type: "password-reset",
   };
 
   return jwt.sign(payload, getJWTSecret(), {
-    expiresIn: '1h',
-    issuer: 'x-app',
-    audience: 'x-users'
+    expiresIn: "1h",
+    issuer: "x-app",
+    audience: "x-users",
   });
 };
 
-// Helper function to verify JWT token
 const verifyToken = (token: string): any => {
   return jwt.verify(token, getJWTSecret(), {
-    issuer: 'x-app',
-    audience: 'x-users'
+    issuer: "x-app",
+    audience: "x-users",
   });
 };
 
-// Helper function to send response with token in cookie
 const sendTokenResponse = (
   user: IUser,
   statusCode: number,
   res: Response,
-  message: string = 'Success'
+  message: string = "Success"
 ) => {
   const token = generateToken(user);
 
   const cookieOptions = {
-    expires: new Date(Date.now() + (process.env.JWT_COOKIE_EXPIRES_IN ? parseInt(process.env.JWT_COOKIE_EXPIRES_IN) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000)), // 7 days default
+    expires: new Date(
+      Date.now() +
+        (process.env.JWT_COOKIE_EXPIRES_IN
+          ? parseInt(process.env.JWT_COOKIE_EXPIRES_IN) * 24 * 60 * 60 * 1000
+          : 7 * 24 * 60 * 60 * 1000)
+    ), // 7 days default
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
   };
 
   res
     .status(statusCode)
-    .cookie('TwitterToken', token, cookieOptions)
+    .cookie("TwitterToken", token, cookieOptions)
     .json({
       success: true,
       message,
       data: {
         user: user.toJSON(),
         token,
-        tokenType: 'Bearer',
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+        tokenType: "Bearer",
+        expiresIn: process.env.JWT_EXPIRES_IN || "7d",
       },
     });
 };
 
-// Helper function to get client info
 const getClientInfo = (req: Request) => {
-  const userAgent = req.get('User-Agent') || req.headers['user-agent'] || 'Unknown Device';
-  
-  const ipAddress = requestIP.getClientIp(req) || 'Unknown IP';
-  
+  const userAgent =
+    req.get("User-Agent") || req.headers["user-agent"] || "Unknown Device";
+
+  const ipAddress = requestIP.getClientIp(req) || "Unknown IP";
+
   const getLocation = () => {
     // Cloudflare country code
-    const cfCountry = req.get('CF-IPCountry') || req.headers['cf-ipcountry'];
-    if (cfCountry && cfCountry !== 'XX' && cfCountry !== 'T1') {
+    const cfCountry = req.get("CF-IPCountry") || req.headers["cf-ipcountry"];
+    if (cfCountry && cfCountry !== "XX" && cfCountry !== "T1") {
       return cfCountry;
     }
-    
+
     // AWS CloudFront country code
-    const cloudfrontCountry = req.get('CloudFront-Viewer-Country') || req.headers['cloudfront-viewer-country'];
+    const cloudfrontCountry =
+      req.get("CloudFront-Viewer-Country") ||
+      req.headers["cloudfront-viewer-country"];
     if (cloudfrontCountry) {
       return cloudfrontCountry;
     }
-    
-    return 'Unknown Location';
+
+    return "Unknown Location";
   };
-  
+
   const location = getLocation();
-  
+
   // Clean up IPv4-mapped IPv6 addresses
   const cleanIP = (ip: string) => {
-    if (ip.startsWith('::ffff:')) {
+    if (ip.startsWith("::ffff:")) {
       return ip.substring(7);
     }
     return ip;
   };
-  
-  return { 
-    userAgent, 
-    ipAddress: cleanIP(ipAddress), 
+
+  return {
+    userAgent,
+    ipAddress: cleanIP(ipAddress),
     location,
     timestamp: new Date().toISOString(),
     protocol: req.protocol,
-    host: req.get('Host') || 'Unknown Host'
+    host: req.get("Host") || "Unknown Host",
   };
 };
 
-// @desc    Register new user
-// @route   POST /api/auth/register
-// @access  Public
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { username, email, name, password, dateOfBirth } = req.body;
@@ -190,7 +185,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     if (!username || !email || !name || !password || !dateOfBirth) {
       res.status(400).json({
         success: false,
-        message: 'All fields are required'
+        message: "All fields are required",
       });
       return;
     }
@@ -199,16 +194,17 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const existingUser = await User.findOne({
       $or: [
         { username: username.toLowerCase() },
-        { email: email.toLowerCase() }
-      ]
+        { email: email.toLowerCase() },
+      ],
     });
 
     if (existingUser) {
       res.status(400).json({
         success: false,
-        message: existingUser.username === username.toLowerCase()
-          ? 'Username already taken'
-          : 'Email already registered'
+        message:
+          existingUser.username === username.toLowerCase()
+            ? "Username already taken"
+            : "Email already registered",
       });
       return;
     }
@@ -219,45 +215,46 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       email: email.toLowerCase(),
       name: name.trim(),
       password,
-      dateOfBirth: new Date(dateOfBirth)
+      dateOfBirth: new Date(dateOfBirth),
     });
 
     await user.save();
 
     // Generate email verification token
-    const verificationToken = generateEmailVerificationToken(user._id.toString());
-    
+    const verificationToken = generateEmailVerificationToken(
+      user._id.toString()
+    );
+
     // Save verification token to user (optional, for tracking)
     user.emailVerificationToken = verificationToken;
     user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     await user.save();
 
     // Send verification email
-      await sendVerificationEmail({
-        name: user.name,
-        email: user.email,
-        verificationToken
-      });
- 
+    await sendVerificationEmail({
+      name: user.name,
+      email: user.email,
+      verificationToken,
+    });
 
     sendTokenResponse(
       user,
       201,
       res,
-      'User registered successfully. Please verify your email.'
+      "User registered successfully. Please verify your email."
     );
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error("Registration error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : 'Server error during registration'
+      message:
+        error instanceof Error
+          ? error.message
+          : "Server error during registration",
     });
   }
 };
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { identifier, password } = req.body;
@@ -266,7 +263,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (!identifier || !password) {
       res.status(400).json({
         success: false,
-        message: 'Username/email and password are required'
+        message: "Username/email and password are required",
       });
       return;
     }
@@ -275,14 +272,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const user = await User.findOne({
       $or: [
         { username: identifier.toLowerCase() },
-        { email: identifier.toLowerCase() }
-      ]
-    }).select('+password +loginAttempts +lockUntil');
+        { email: identifier.toLowerCase() },
+      ],
+    }).select("+password +loginAttempts +lockUntil");
 
     if (!user) {
-      res.status(401).json({ 
+      res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: "Invalid credentials",
       });
       return;
     }
@@ -291,8 +288,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (user.isAccountLocked && user.isAccountLocked()) {
       res.status(423).json({
         success: false,
-        message: 'Account temporarily locked due to too many failed login attempts',
-        lockUntil: user.lockUntil
+        message:
+          "Account temporarily locked due to too many failed login attempts",
+        lockUntil: user.lockUntil,
       });
       return;
     }
@@ -300,9 +298,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (user.isSuspended) {
       res.status(403).json({
         success: false,
-        message: 'Account suspended',
+        message: "Account suspended",
         suspensionReason: user.suspensionReason,
-        suspensionExpires: user.suspensionExpires
+        suspensionExpires: user.suspensionExpires,
       });
       return;
     }
@@ -310,7 +308,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (!user.isActive) {
       res.status(403).json({
         success: false,
-        message: 'Account deactivated'
+        message: "Account deactivated",
       });
       return;
     }
@@ -323,7 +321,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       }
       res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: "Invalid credentials",
       });
       return;
     }
@@ -335,92 +333,84 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     user.lastLogin = new Date();
     await user.save();
 
-    
     // Send login alert email
-    // Get client info and parse user agent
     const { userAgent, ipAddress, location } = getClientInfo(req);
     const deviceInfo = parseUserAgent(userAgent);
-    
-    console.info(`User login: ${user.username} from ${ipAddress} using ${deviceInfo.browser} on ${deviceInfo.os}`);
-    // Send login alert email
-   
-      await sendLoginAlertEmail({
-        name: user.name,
-        email: user.email,
-        username: user.username,
-        ipAddress,
-        userAgent,
-        location,
-        loginTime: new Date(),
-        deviceInfo
-      });   
 
-    sendTokenResponse(user, 200, res, 'Login successful');
+    await sendLoginAlertEmail({
+      name: user.name,
+      email: user.email,
+      username: user.username,
+      ipAddress,
+      userAgent,
+      location,
+      loginTime: new Date(),
+      deviceInfo,
+    });
+
+    sendTokenResponse(user, 200, res, "Login successful");
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error during login'
+      message: "Server error during login",
     });
   }
 };
 
-// @desc    Logout user
-// @route   POST /api/auth/logout
-// @access  Public
 export const logout = (req: Request, res: Response): void => {
   res
-    .cookie('TwitterToken', '', {
+    .cookie("TwitterToken", "", {
       expires: new Date(0),
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
     })
     .json({
       success: true,
-      message: 'Logged out successfully'
+      message: "Logged out successfully",
     });
 };
 
-// @desc    Get current user
-// @route   GET /api/auth/me
-// @access  Private
-export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getMe = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
   try {
     const user = req.user;
 
     if (!user) {
       res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
       return;
     }
 
     res.json({
       success: true,
-      data: { user: user }
+      data: { user: user },
     });
   } catch (error) {
-    console.error('Get current user error:', error);
+    console.error("Get current user error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
 
-// @desc    Verify email
-// @route   POST /api/auth/verify-email
-// @access  Public
-export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
+export const verifyEmail = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { token } = req.body;
 
     if (!token) {
       res.status(400).json({
         success: false,
-        message: 'Verification token is required'
+        message: "Verification token is required",
       });
       return;
     }
@@ -428,10 +418,10 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
     try {
       const decoded = verifyToken(token) as VerificationTokenPayload;
 
-      if (decoded.type !== 'email-verification') {
+      if (decoded.type !== "email-verification") {
         res.status(400).json({
           success: false,
-          message: 'Invalid token type'
+          message: "Invalid token type",
         });
         return;
       }
@@ -441,7 +431,7 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
       if (!user) {
         res.status(400).json({
           success: false,
-          message: 'Invalid verification token'
+          message: "Invalid verification token",
         });
         return;
       }
@@ -449,7 +439,7 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
       if (user.isEmailVerified) {
         res.status(400).json({
           success: false,
-          message: 'Email already verified'
+          message: "Email already verified",
         });
         return;
       }
@@ -464,42 +454,42 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
         await sendWelcomeEmail({
           name: user.name,
           email: user.email,
-          username: user.username
+          username: user.username,
         });
       } catch (emailError) {
-        console.error('Failed to send welcome email:', emailError);
+        console.error("Failed to send welcome email:", emailError);
       }
 
       res.json({
         success: true,
-        message: 'Email verified successfully'
+        message: "Email verified successfully",
       });
     } catch (jwtError) {
       res.status(400).json({
         success: false,
-        message: 'Invalid or expired verification token'
+        message: "Invalid or expired verification token",
       });
     }
   } catch (error) {
-    console.error('Email verification error:', error);
+    console.error("Email verification error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error during email verification'
+      message: "Server error during email verification",
     });
   }
 };
 
-// @desc    Resend verification email
-// @route   POST /api/auth/resend-verification
-// @access  Private
-export const resendVerification = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const resendVerification = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
   try {
     const user = req.user;
 
     if (!user) {
       res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
       return;
     }
@@ -507,13 +497,15 @@ export const resendVerification = async (req: AuthenticatedRequest, res: Respons
     if (user.isEmailVerified) {
       res.status(400).json({
         success: false,
-        message: 'Email already verified'
+        message: "Email already verified",
       });
       return;
     }
 
-    const verificationToken = generateEmailVerificationToken(user._id.toString());
-    
+    const verificationToken = generateEmailVerificationToken(
+      user._id.toString()
+    );
+
     user.emailVerificationToken = verificationToken;
     user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await user.save();
@@ -522,42 +514,42 @@ export const resendVerification = async (req: AuthenticatedRequest, res: Respons
       await sendVerificationEmail({
         name: user.name,
         email: user.email,
-        verificationToken
+        verificationToken,
       });
 
       console.info(`Verification email resent to: ${user.email}`);
 
       res.json({
         success: true,
-        message: 'Verification email sent successfully'
+        message: "Verification email sent successfully",
       });
     } catch (emailError) {
-      console.error('Failed to send verification email:', emailError);
+      console.error("Failed to send verification email:", emailError);
       res.status(500).json({
         success: false,
-        message: 'Failed to send verification email'
+        message: "Failed to send verification email",
       });
     }
   } catch (error) {
-    console.error('Resend verification error:', error);
+    console.error("Resend verification error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
 
-// @desc    Forgot password
-// @route   POST /api/auth/forgot-password
-// @access  Public
-export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+export const forgotPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { email } = req.body;
 
     if (!email) {
       res.status(400).json({
         success: false,
-        message: 'Email is required'
+        message: "Email is required",
       });
       return;
     }
@@ -568,13 +560,13 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     if (!user) {
       res.json({
         success: true,
-        message: 'If the email exists, a password reset link has been sent'
+        message: "If the email exists, a password reset link has been sent",
       });
       return;
     }
 
     const resetToken = generatePasswordResetToken(user._id.toString());
-    
+
     user.passwordResetToken = resetToken;
     user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
@@ -584,42 +576,40 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
         name: user.name,
         email: user.email,
         username: user.username,
-        resetToken
+        resetToken,
       });
-
-      console.info(`Password reset requested for: ${user.email}`);
 
       res.json({
         success: true,
-        message: 'Password reset link sent to your email'
+        message: "Password reset link sent to your email",
       });
     } catch (emailError) {
-      console.error('Failed to send password reset email:', emailError);
+      console.error("Failed to send password reset email:", emailError);
       res.json({
         success: true,
-        message: 'If the email exists, a password reset link has been sent'
+        message: "If the email exists, a password reset link has been sent",
       });
     }
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error("Forgot password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
 
-// @desc    Reset password
-// @route   POST /api/auth/reset-password
-// @access  Public
-export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+export const resetPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { token, password } = req.body;
 
     if (!token || !password) {
       res.status(400).json({
         success: false,
-        message: 'Token and password are required'
+        message: "Token and password are required",
       });
       return;
     }
@@ -627,20 +617,20 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     try {
       const decoded = verifyToken(token) as PasswordResetTokenPayload;
 
-      if (decoded.type !== 'password-reset') {
+      if (decoded.type !== "password-reset") {
         res.status(400).json({
           success: false,
-          message: 'Invalid token type'
+          message: "Invalid token type",
         });
         return;
       }
 
-      const user = await User.findById(decoded.userId).select('+password');
+      const user = await User.findById(decoded.userId).select("+password");
 
       if (!user) {
         res.status(400).json({
           success: false,
-          message: 'Invalid reset token'
+          message: "Invalid reset token",
         });
         return;
       }
@@ -650,7 +640,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       if (isSamePassword) {
         res.status(400).json({
           success: false,
-          message: 'New password must be different from current password'
+          message: "New password must be different from current password",
         });
         return;
       }
@@ -660,48 +650,62 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       user.passwordResetExpires = undefined;
       await user.save();
 
-      console.info(`Password reset successful for user: ${user.username}`);
+      // Send password changed email
+      const { userAgent, ipAddress, location } = getClientInfo(req);
+
+      try {
+        await sendPasswordChangedEmail({
+          name: user.name,
+          email: user.email,
+          username: user.username,
+          ipAddress,
+          userAgent,
+          location,
+        });
+      } catch (emailError) {
+        console.error("Failed to send password changed email:", emailError);
+      }
 
       res.json({
         success: true,
-        message: 'Password reset successfully'
+        message: "Password reset successfully",
       });
     } catch (jwtError) {
       res.status(400).json({
         success: false,
-        message: 'Invalid or expired reset token'
+        message: "Invalid or expired reset token",
       });
     }
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error("Reset password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error during password reset'
+      message: "Server error during password reset",
     });
   }
 };
 
-// @desc    Change password
-// @route   PUT /api/auth/change-password
-// @access  Private
-export const changePassword = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const changePassword = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
   try {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
       res.status(400).json({
         success: false,
-        message: 'Current password and new password are required'
+        message: "Current password and new password are required",
       });
       return;
     }
 
-    const user = await User.findById(req.user?._id).select('+password');
+    const user = await User.findById(req.user?._id).select("+password");
 
     if (!user) {
       res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
       return;
     }
@@ -711,7 +715,7 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response): 
     if (!isCurrentPasswordValid) {
       res.status(400).json({
         success: false,
-        message: 'Current password is incorrect'
+        message: "Current password is incorrect",
       });
       return;
     }
@@ -721,7 +725,7 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response): 
     if (isSamePassword) {
       res.status(400).json({
         success: false,
-        message: 'New password must be different from current password'
+        message: "New password must be different from current password",
       });
       return;
     }
@@ -733,7 +737,7 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response): 
 
     // Get client info and send notification email
     const { userAgent, ipAddress, location } = getClientInfo(req);
-    
+
     try {
       await sendPasswordChangedEmail({
         name: user.name,
@@ -741,29 +745,29 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response): 
         username: user.username,
         ipAddress,
         userAgent,
-        location
+        location,
       });
     } catch (emailError) {
-      console.error('Failed to send password changed email:', emailError);
+      console.error("Failed to send password changed email:", emailError);
     }
 
     res.json({
       success: true,
-      message: 'Password changed successfully'
+      message: "Password changed successfully",
     });
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error("Change password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
 
-// @desc    Update user profile
-// @route   PUT /api/auth/profile
-// @access  Private
-export const updateProfile = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const updateProfile = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
   try {
     const { name, bio, location, website } = req.body;
 
@@ -772,7 +776,7 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response): P
     if (!user) {
       res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
       return;
     }
@@ -789,39 +793,39 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response): P
 
     res.json({
       success: true,
-      message: 'Profile updated successfully',
-      data: { user: user.toJSON() }
+      message: "Profile updated successfully",
+      data: { user: user.toJSON() },
     });
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error("Update profile error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
 
-// @desc    Deactivate account
-// @route   DELETE /api/auth/deactivate
-// @access  Private
-export const deactivateAccount = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const deactivateAccount = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
   try {
     const { password } = req.body;
 
     if (!password) {
       res.status(400).json({
         success: false,
-        message: 'Password is required for account deactivation'
+        message: "Password is required for account deactivation",
       });
       return;
     }
 
-    const user = await User.findById(req.user?._id).select('+password');
+    const user = await User.findById(req.user?._id).select("+password");
 
     if (!user) {
       res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
       return;
     }
@@ -831,7 +835,7 @@ export const deactivateAccount = async (req: AuthenticatedRequest, res: Response
     if (!isPasswordValid) {
       res.status(400).json({
         success: false,
-        message: 'Password is incorrect'
+        message: "Password is incorrect",
       });
       return;
     }
@@ -842,38 +846,38 @@ export const deactivateAccount = async (req: AuthenticatedRequest, res: Response
     console.info(`Account deactivated for user: ${user.username}`);
 
     // Clear cookie on deactivation
-    res.cookie('TwitterToken', '', {
+    res.cookie("TwitterToken", "", {
       expires: new Date(0),
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/'
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
     });
 
     res.json({
       success: true,
-      message: 'Account deactivated successfully'
+      message: "Account deactivated successfully",
     });
   } catch (error) {
-    console.error('Deactivate account error:', error);
+    console.error("Deactivate account error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
 
-// @desc    Check username availability
-// @route   GET /api/auth/check-username/:username
-// @access  Public
-export const checkUsername = async (req: Request, res: Response): Promise<void> => {
+export const checkUsername = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { username } = req.params;
 
     if (!username || username.length < 3 || username.length > 15) {
       res.status(400).json({
         success: false,
-        message: 'Username must be between 3 and 15 characters'
+        message: "Username must be between 3 and 15 characters",
       });
       return;
     }
@@ -881,50 +885,50 @@ export const checkUsername = async (req: Request, res: Response): Promise<void> 
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
       res.status(400).json({
         success: false,
-        message: 'Username can only contain letters, numbers, and underscores'
+        message: "Username can only contain letters, numbers, and underscores",
       });
       return;
     }
 
     const existingUser = await User.findOne({
-      username: username.toLowerCase()
-    }).select('_id');
+      username: username.toLowerCase(),
+    }).select("_id");
 
     res.json({
       success: true,
       available: !existingUser,
-      message: existingUser ? 'Username already taken' : 'Username available'
+      message: existingUser ? "Username already taken" : "Username available",
     });
   } catch (error) {
-    console.error('Check username error:', error);
+    console.error("Check username error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
 
-// @desc    Check email availability
-// @route   GET /api/auth/check-email/:email
-// @access  Public
-export const checkEmail = async (req: Request, res: Response): Promise<void> => {
+export const checkEmail = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { email } = req.params;
 
     const existingUser = await User.findOne({
-      email: email.toLowerCase()
-    }).select('_id');
+      email: email.toLowerCase(),
+    }).select("_id");
 
     res.json({
       success: true,
       available: !existingUser,
-      message: existingUser ? 'Email already registered' : 'Email available'
+      message: existingUser ? "Email already registered" : "Email available",
     });
   } catch (error) {
-    console.error('Check email error:', error);
+    console.error("Check email error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: "Server error",
     });
   }
 };
@@ -942,5 +946,5 @@ export default {
   updateProfile,
   deactivateAccount,
   checkUsername,
-  checkEmail
+  checkEmail,
 };
