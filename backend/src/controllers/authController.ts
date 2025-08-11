@@ -8,35 +8,24 @@ import {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
+  sendLoginAlertEmail
 } from '../email/emailService';
 import 'dotenv/config';
+import { parseUserAgent } from '../utils/userAgentParser';
+import requestIP from 'request-ip';
 
 // Extend Request interface for authenticated requests
 interface AuthenticatedRequest extends Request {
-  user?: {
-    userId: string;
-    username: string;
-    email: string;
-    isAdmin: boolean;
-    isModerator: boolean;
-  };
+  user?: IUser;
 }
 
-// JWT Token Types
-interface AccessTokenPayload {
-  userId: string;
+// JWT Token payload interface
+interface JWTPayload {
+  id: string;
   username: string;
   email: string;
   isAdmin: boolean;
   isModerator: boolean;
-  type: 'access';
-  iat?: number;
-  exp?: number;
-}
-
-interface RefreshTokenPayload {
-  userId: string;
-  type: 'refresh';
   iat?: number;
   exp?: number;
 }
@@ -55,43 +44,30 @@ interface PasswordResetTokenPayload {
   exp?: number;
 }
 
-// Helper function to generate JWT tokens
-const generateTokens = (user: IUser) => {
-  const accessTokenPayload: AccessTokenPayload = {
-    userId: user._id.toString(),
+// Helper function to get JWT secret with validation
+const getJWTSecret = (): string => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
+  return secret;
+};
+
+// Helper function to generate JWT token
+const generateToken = (user: IUser): string => {
+  const payload: JWTPayload = {
+    id: user._id.toString(),
     username: user.username,
     email: user.email,
     isAdmin: user.isAdmin || false,
-    isModerator: user.isModerator || false,
-    type: 'access'
+    isModerator: user.isModerator || false
   };
 
-  const refreshTokenPayload: RefreshTokenPayload = {
-    userId: user._id.toString(),
-    type: 'refresh'
-  };
-
-  const accessToken = jwt.sign(
-    accessTokenPayload,
-    process.env.JWT_SECRET!,
-    { 
-      expiresIn:  '15m',
-      issuer: 'x-app',
-      audience: 'x-users'
-    }
-  );
-
-  const refreshToken = jwt.sign(
-    refreshTokenPayload,
-    process.env.JWT_REFRESH_SECRET!,
-    { 
-      expiresIn: '7d',
-      issuer: 'x-app',
-      audience: 'x-users'
-    }
-  );
-
-  return { accessToken, refreshToken };
+  return jwt.sign(payload, getJWTSecret(), {
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    issuer: 'x-app',
+    audience: 'x-users'
+  });
 };
 
 // Helper function to generate email verification token
@@ -101,7 +77,7 @@ const generateEmailVerificationToken = (userId: string): string => {
     type: 'email-verification'
   };
 
-  return jwt.sign(payload, process.env.JWT_SECRET!, {
+  return jwt.sign(payload, getJWTSecret(), {
     expiresIn: '24h',
     issuer: 'x-app',
     audience: 'x-users'
@@ -115,7 +91,7 @@ const generatePasswordResetToken = (userId: string): string => {
     type: 'password-reset'
   };
 
-  return jwt.sign(payload, process.env.JWT_SECRET!, {
+  return jwt.sign(payload, getJWTSecret(), {
     expiresIn: '1h',
     issuer: 'x-app',
     audience: 'x-users'
@@ -123,52 +99,84 @@ const generatePasswordResetToken = (userId: string): string => {
 };
 
 // Helper function to verify JWT token
-const verifyToken = (token: string, secret: string): any => {
-  return jwt.verify(token, secret, {
+const verifyToken = (token: string): any => {
+  return jwt.verify(token, getJWTSecret(), {
     issuer: 'x-app',
     audience: 'x-users'
   });
 };
 
-// Helper function to send response with tokens
+// Helper function to send response with token in cookie
 const sendTokenResponse = (
   user: IUser,
   statusCode: number,
   res: Response,
   message: string = 'Success'
 ) => {
-  const { accessToken, refreshToken } = generateTokens(user);
+  const token = generateToken(user);
 
   const cookieOptions = {
-    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    expires: new Date(Date.now() + (process.env.JWT_COOKIE_EXPIRES_IN ? parseInt(process.env.JWT_COOKIE_EXPIRES_IN) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000)), // 7 days default
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict' as const,
-    path: '/'
   };
 
   res
     .status(statusCode)
-    .cookie('refreshToken', refreshToken, cookieOptions)
+    .cookie('TwitterToken', token, cookieOptions)
     .json({
       success: true,
       message,
       data: {
         user: user.toJSON(),
-        accessToken,
+        token,
         tokenType: 'Bearer',
-        expiresIn: process.env.JWT_EXPIRES_IN || '15m'
+        expiresIn: process.env.JWT_EXPIRES_IN || '7d'
       },
     });
 };
 
 // Helper function to get client info
 const getClientInfo = (req: Request) => {
-  const userAgent = req.get('User-Agent') || 'Unknown Device';
-  const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown IP';
-  const location = req.get('CF-IPCountry') || 'Unknown Location'; // Cloudflare country header
+  const userAgent = req.get('User-Agent') || req.headers['user-agent'] || 'Unknown Device';
   
-  return { userAgent, ipAddress, location };
+  const ipAddress = requestIP.getClientIp(req) || 'Unknown IP';
+  
+  const getLocation = () => {
+    // Cloudflare country code
+    const cfCountry = req.get('CF-IPCountry') || req.headers['cf-ipcountry'];
+    if (cfCountry && cfCountry !== 'XX' && cfCountry !== 'T1') {
+      return cfCountry;
+    }
+    
+    // AWS CloudFront country code
+    const cloudfrontCountry = req.get('CloudFront-Viewer-Country') || req.headers['cloudfront-viewer-country'];
+    if (cloudfrontCountry) {
+      return cloudfrontCountry;
+    }
+    
+    return 'Unknown Location';
+  };
+  
+  const location = getLocation();
+  
+  // Clean up IPv4-mapped IPv6 addresses
+  const cleanIP = (ip: string) => {
+    if (ip.startsWith('::ffff:')) {
+      return ip.substring(7);
+    }
+    return ip;
+  };
+  
+  return { 
+    userAgent, 
+    ipAddress: cleanIP(ipAddress), 
+    location,
+    timestamp: new Date().toISOString(),
+    protocol: req.protocol,
+    host: req.get('Host') || 'Unknown Host'
+  };
 };
 
 // @desc    Register new user
@@ -224,19 +232,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     await user.save();
 
-    console.info(`New user registered: ${user.username} (${user.email})`);
-
     // Send verification email
-    try {
       await sendVerificationEmail({
         name: user.name,
         email: user.email,
         verificationToken
       });
-    } catch (emailError) {
-      console.error('Failed to send verification email:', emailError);
-      // Don't fail registration if email fails
-    }
+ 
 
     sendTokenResponse(
       user,
@@ -278,7 +280,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }).select('+password +loginAttempts +lockUntil');
 
     if (!user) {
-      res.status(401).json({
+      res.status(401).json({ 
         success: false,
         message: 'Invalid credentials'
       });
@@ -333,26 +335,25 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     user.lastLogin = new Date();
     await user.save();
 
-    // Get client info for security alert
+    
+    // Send login alert email
+    // Get client info and parse user agent
     const { userAgent, ipAddress, location } = getClientInfo(req);
-
-    // Send login alert email (optional, for security)
-    try {
-      // await sendLoginAlertEmail({
-      //   name: user.name,
-      //   email: user.email,
-      //   username: user.username,
-      //   ipAddress,
-      //   userAgent,
-      //   location,
-      //   loginTime: new Date()
-      // });
-    } catch (emailError) {
-      console.error('Failed to send login alert email:', emailError);
-      // Don't fail login if email fails
-    }
-
-    console.info(`User login: ${user.username} from ${ipAddress}`);
+    const deviceInfo = parseUserAgent(userAgent);
+    
+    console.info(`User login: ${user.username} from ${ipAddress} using ${deviceInfo.browser} on ${deviceInfo.os}`);
+    // Send login alert email
+   
+      await sendLoginAlertEmail({
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        ipAddress,
+        userAgent,
+        location,
+        loginTime: new Date(),
+        deviceInfo
+      });   
 
     sendTokenResponse(user, 200, res, 'Login successful');
   } catch (error) {
@@ -364,68 +365,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// @desc    Refresh access token
-// @route   POST /api/auth/refresh
-// @access  Public
-export const refreshToken = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
-
-    if (!refreshToken) {
-      res.status(401).json({
-        success: false,
-        message: 'Refresh token not provided'
-      });
-      return;
-    }
-
-    try {
-      const decoded = verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET!) as RefreshTokenPayload;
-      
-      if (decoded.type !== 'refresh') {
-        res.status(401).json({
-          success: false,
-          message: 'Invalid token type'
-        });
-        return;
-      }
-
-      const user = await User.findById(decoded.userId);
-      if (!user || !user.isActive || user.isSuspended) {
-        res.status(401).json({
-          success: false,
-          message: 'Invalid refresh token'
-        });
-        return;
-      }
-
-      sendTokenResponse(user, 200, res, 'Token refreshed successfully');
-    } catch (jwtError) {
-      res.status(401).json({
-        success: false,
-        message: 'Invalid or expired refresh token'
-      });
-    }
-  } catch (error) {
-    console.error('Token refresh error:', error);
-    res.status(401).json({
-      success: false,
-      message: 'Token refresh failed'
-    });
-  }
-};
-
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Public
 export const logout = (req: Request, res: Response): void => {
   res
-    .cookie('refreshToken', '', {
+    .cookie('TwitterToken', '', {
       expires: new Date(0),
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      path: '/'
     })
     .json({
       success: true,
@@ -438,8 +387,7 @@ export const logout = (req: Request, res: Response): void => {
 // @access  Private
 export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const user = await User.findById(req.user?.userId)
-      .populate('followersCount followingCount tweetsCount likesCount');
+    const user = req.user;
 
     if (!user) {
       res.status(404).json({
@@ -451,7 +399,7 @@ export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<v
 
     res.json({
       success: true,
-      data: { user: user.toJSON() }
+      data: { user: user }
     });
   } catch (error) {
     console.error('Get current user error:', error);
@@ -478,7 +426,7 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
     }
 
     try {
-      const decoded = verifyToken(token, process.env.JWT_SECRET!) as VerificationTokenPayload;
+      const decoded = verifyToken(token) as VerificationTokenPayload;
 
       if (decoded.type !== 'email-verification') {
         res.status(400).json({
@@ -511,8 +459,6 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
       user.emailVerificationExpires = undefined;
       await user.save();
 
-      console.info(`Email verified for user: ${user.username}`);
-
       // Send welcome email
       try {
         await sendWelcomeEmail({
@@ -522,7 +468,6 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
         });
       } catch (emailError) {
         console.error('Failed to send welcome email:', emailError);
-        // Don't fail verification if email fails
       }
 
       res.json({
@@ -549,7 +494,7 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
 // @access  Private
 export const resendVerification = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const user = await User.findById(req.user?.userId);
+    const user = req.user;
 
     if (!user) {
       res.status(404).json({
@@ -570,10 +515,9 @@ export const resendVerification = async (req: AuthenticatedRequest, res: Respons
     const verificationToken = generateEmailVerificationToken(user._id.toString());
     
     user.emailVerificationToken = verificationToken;
-    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await user.save();
 
-    // Send verification email
     try {
       await sendVerificationEmail({
         name: user.name,
@@ -635,7 +579,6 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
 
-    // Send password reset email
     try {
       await sendPasswordResetEmail({
         name: user.name,
@@ -682,7 +625,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     }
 
     try {
-      const decoded = verifyToken(token, process.env.JWT_SECRET!) as PasswordResetTokenPayload;
+      const decoded = verifyToken(token) as PasswordResetTokenPayload;
 
       if (decoded.type !== 'password-reset') {
         res.status(400).json({
@@ -753,7 +696,7 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response): 
       return;
     }
 
-    const user = await User.findById(req.user?.userId).select('+password');
+    const user = await User.findById(req.user?._id).select('+password');
 
     if (!user) {
       res.status(404).json({
@@ -802,7 +745,6 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response): 
       });
     } catch (emailError) {
       console.error('Failed to send password changed email:', emailError);
-      // Don't fail password change if email fails
     }
 
     res.json({
@@ -825,7 +767,7 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response): P
   try {
     const { name, bio, location, website } = req.body;
 
-    const user = await User.findById(req.user?.userId);
+    const user = await User.findById(req.user?._id);
 
     if (!user) {
       res.status(404).json({
@@ -874,7 +816,7 @@ export const deactivateAccount = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
-    const user = await User.findById(req.user?.userId).select('+password');
+    const user = await User.findById(req.user?._id).select('+password');
 
     if (!user) {
       res.status(404).json({
@@ -898,6 +840,15 @@ export const deactivateAccount = async (req: AuthenticatedRequest, res: Response
     await user.save();
 
     console.info(`Account deactivated for user: ${user.username}`);
+
+    // Clear cookie on deactivation
+    res.cookie('TwitterToken', '', {
+      expires: new Date(0),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/'
+    });
 
     res.json({
       success: true,
@@ -978,64 +929,9 @@ export const checkEmail = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-// @desc    Verify JWT token (utility function)
-// @route   POST /api/auth/verify-token
-// @access  Public
-export const verifyJWTToken = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { token } = req.body;
-
-    if (!token) {
-      res.status(400).json({
-        success: false,
-        message: 'Token is required'
-      });
-      return;
-    }
-
-    try {
-      const decoded = verifyToken(token, process.env.JWT_SECRET!) as AccessTokenPayload;
-      
-      const user = await User.findById(decoded.userId);
-      if (!user || !user.isActive || user.isSuspended) {
-        res.status(401).json({
-          success: false,
-          message: 'Invalid token - user not found or inactive'
-        });
-        return;
-      }
-
-      res.json({
-        success: true,
-        message: 'Token is valid',
-        data: {
-          userId: decoded.userId,
-          username: decoded.username,
-          email: decoded.email,
-          isAdmin: decoded.isAdmin,
-          isModerator: decoded.isModerator,
-          expiresAt: new Date(decoded.exp! * 1000)
-        }
-      });
-    } catch (jwtError) {
-      res.status(401).json({
-        success: false,
-        message: 'Invalid or expired token'
-      });
-    }
-  } catch (error) {
-    console.error('Token verification error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-};
-
 export default {
   register,
   login,
-  refreshToken,
   logout,
   getMe,
   verifyEmail,
@@ -1046,6 +942,5 @@ export default {
   updateProfile,
   deactivateAccount,
   checkUsername,
-  checkEmail,
-  verifyJWTToken
+  checkEmail
 };

@@ -3,6 +3,7 @@ export { default as sendVerificationEmail } from './templates/sendVerificationEm
 export { default as sendWelcomeEmail } from './templates/sendWelcomeEmail';
 export { default as sendPasswordResetEmail } from './templates/sendPasswordResetEmail';
 export { default as sendPasswordChangedEmail } from './templates/sendPasswordChangedEmail';
+export { default as sendLoginAlertEmail } from './templates/sendLoginAlertEmail';
 
 // Email Service Export
 export { emailService } from './sendMail';

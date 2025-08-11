@@ -1,26 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { User } from '../models/userModel';
+import { User, IUser } from '../models/userModel';
 
 // Extend Request interface for authenticated requests
 interface AuthenticatedRequest extends Request {
-  user?: {
-    userId: string;
-    username: string;
-    email: string;
-    isAdmin: boolean;
-    isModerator: boolean;
-  };
+  user?: IUser;
 }
 
 // JWT Token payload interface
-interface AccessTokenPayload {
-  userId: string;
+interface JWTPayload {
+  id: string;
   username: string;
   email: string;
   isAdmin: boolean;
   isModerator: boolean;
-  type: 'access';
   iat?: number;
   exp?: number;
 }
@@ -35,11 +28,11 @@ const getJWTSecret = (): string => {
 };
 
 // Helper function to verify JWT token
-const verifyToken = (token: string): AccessTokenPayload => {
+const verifyToken = (token: string): JWTPayload => {
   return jwt.verify(token, getJWTSecret(), {
     issuer: 'x-app',
     audience: 'x-users'
-  }) as AccessTokenPayload;
+  }) as JWTPayload;
 };
 
 // @desc    Authenticate user middleware
@@ -50,39 +43,88 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // // Get token from Authorization header
-    // const authHeader = req.header('Authorization');
-    // console.log(req.header('Authorization'));
-    
-    // if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    //   res.status(401).json({
-    //     success: false,
-    //     message: 'Access denied. No valid token provided.'
-    //   });
-    //   return;
-    // }
-
-     const token = req.cookies.SportsBuddyToken;
+    // Get token from cookie
+    const token = req.cookies.TwitterToken;
 
     if (!token) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
-        message: "Please login to access this resource",
+        message: 'Access denied. No token provided.',
+        code: 'NO_TOKEN'
       });
+      return;
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    try {
+      // Verify the token
+      const decoded = verifyToken(token);
+      
+      // Check if user still exists and is active
+      const user = await User.findById(decoded.id).select('+isActive +isSuspended +isEmailVerified');
+      
+      if (!user) {
+        res.status(401).json({
+          success: false,
+          message: 'Token is no longer valid - user not found',
+          code: 'USER_NOT_FOUND'
+        });
+        return;
+      }
 
-    const user = await User.findById(decoded.id).select("-password");
-    if (!user) {
-      return res.status(401).json({
+      // Check if user account is active
+      if (!user.isActive) {
+        res.status(403).json({
+          success: false,
+          message: 'Account is deactivated',
+          code: 'ACCOUNT_DEACTIVATED'
+        });
+        return;
+      }
+
+      // Check if user account is suspended
+      if (user.isSuspended) {
+        res.status(403).json({
+          success: false,
+          message: 'Account is suspended',
+          code: 'ACCOUNT_SUSPENDED',
+          suspensionReason: user.suspensionReason,
+          suspensionExpires: user.suspensionExpires
+        });
+        return;
+      }
+
+      req.user = user;
+
+      next();
+    } catch (jwtError) {
+      console.warn(`Invalid token attempt: ${jwtError}`);
+      
+      // Handle specific JWT errors
+      if (jwtError instanceof jwt.TokenExpiredError) {
+        res.status(401).json({
+          success: false,
+          message: 'Token has expired',
+          code: 'TOKEN_EXPIRED'
+        });
+        return;
+      }
+
+      if (jwtError instanceof jwt.JsonWebTokenError) {
+        res.status(401).json({
+          success: false,
+          message: 'Invalid token',
+          code: 'INVALID_TOKEN'
+        });
+        return;
+      }
+
+      res.status(401).json({
         success: false,
-        message: "User not found",
+        message: 'Token verification failed',
+        code: 'TOKEN_VERIFICATION_FAILED'
       });
+      return;
     }
-
-    req.user = user;
-    next();
   } catch (error) {
     console.error('Authentication middleware error:', error);
     res.status(500).json({
@@ -99,7 +141,7 @@ export const adminAuth = async (
   res: Response, 
   next: NextFunction
 ): Promise<void> => {
-  authenticate(req, res, () => {
+  await authenticate(req, res, () => {
     if (!req.user?.isAdmin) {
       res.status(403).json({
         success: false,
@@ -119,7 +161,7 @@ export const moderatorAuth = async (
   res: Response, 
   next: NextFunction
 ): Promise<void> => {
-  authenticate(req, res, () => {
+  await authenticate(req, res, () => {
     if (!req.user?.isModerator && !req.user?.isAdmin) {
       res.status(403).json({
         success: false,
@@ -139,27 +181,16 @@ export const requireEmailVerification = async (
   res: Response, 
   next: NextFunction
 ): Promise<void> => {
-  authenticate(req, res, async () => {
-    try {
-      const user = await User.findById(req.user?.userId).select('isEmailVerified');
-      
-      if (!user || !user.isEmailVerified) {
-        res.status(403).json({
-          success: false,
-          message: 'Email verification required',
-          code: 'EMAIL_VERIFICATION_REQUIRED'
-        });
-        return;
-      }
-      
-      next();
-    } catch (error) {
-      console.error('Email verification check error:', error);
-      res.status(500).json({
+  await authenticate(req, res, () => {
+    if (!req.user?.isEmailVerified) {
+      res.status(403).json({
         success: false,
-        message: 'Verification check failed'
+        message: 'Email verification required',
+        code: 'EMAIL_VERIFICATION_REQUIRED'
       });
+      return;
     }
+    next();
   });
 };
 
@@ -171,16 +202,9 @@ export const optionalAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const authHeader = req.header('Authorization');
+    const token = req.cookies.TwitterToken;
     
     // If no token provided, continue without authentication
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      next();
-      return;
-    }
-
-    const token = authHeader.replace('Bearer ', '').trim();
-    
     if (!token) {
       next();
       return;
@@ -189,22 +213,14 @@ export const optionalAuth = async (
     try {
       const decoded = verifyToken(token);
       
-      if (decoded.type === 'access') {
-        const user = await User.findById(decoded.userId).select('+isActive +isSuspended');
-        
-        if (user && user.isActive && !user.isSuspended) {
-          req.user = {
-            userId: decoded.userId,
-            username: decoded.username,
-            email: decoded.email,
-            isAdmin: decoded.isAdmin || false,
-            isModerator: decoded.isModerator || false
-          };
-        }
+      const user = await User.findById(decoded.id).select('+isActive +isSuspended');
+      
+      if (user && user.isActive && !user.isSuspended) {
+        req.user = user;
       }
     } catch (jwtError) {
       // Ignore JWT errors in optional auth
-      console.warn('Optional auth token verification failed:', jwtError.message);
+      console.debug(`Optional auth - invalid token: ${jwtError.message}`);
     }
 
     next();
