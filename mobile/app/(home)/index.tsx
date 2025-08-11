@@ -3,10 +3,11 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import React from 'react'
+import React, { useState } from 'react'
 import { useColorScheme } from 'nativewind';
 import { Link } from 'expo-router';
+import Sidebar from '@/components/Sidebar';
+import { useAuth } from '@/context/authContext';
 
 // Dummy data for X posts
 const dummyPosts = [
@@ -175,6 +176,8 @@ const formatNumber = (num: number) => {
 const Home = () => {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { user } = useAuth();
+  const [sidebarVisible, setSidebarVisible] = useState(false);
 
   const PostItem = ({ item }: { item: typeof dummyPosts[0] }) => (
     <View className={`border-b ${isDark ? 'border-gray-800' : 'border-gray-200'} px-4 py-4`}>
@@ -260,21 +263,27 @@ const Home = () => {
 
   const HeaderComponent = () => (
     <View className={`flex flex-row justify-between items-center px-4 py-4 ${isDark ? 'bg-black' : 'bg-white'}`}>
-      <TouchableOpacity>
-        <AntDesign name="user" size={24} color={isDark ? 'white' : 'black'} />
+      <TouchableOpacity onPress={() => setSidebarVisible(true)}>
+        {user?.avatar ? (
+          <Image
+            source={{ uri: user.avatar }}
+            className="w-8 h-8 rounded-full"
+          />
+        ) : (
+          <View className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? 'bg-gray-800' : 'bg-gray-300'}`}>
+            <AntDesign name="user" size={20} color={isDark ? 'white' : 'black'} />
+          </View>
+        )}
       </TouchableOpacity>
       <FontAwesome6 name='x-twitter' size={28} color={isDark ? 'white' : 'black'} />
-      <Link href="/auth" asChild>
-      <TouchableOpacity >
+      <TouchableOpacity>
         <Feather name="settings" size={24} color={isDark ? 'white' : 'black'} />
       </TouchableOpacity>
-      </Link>
     </View>
   );
 
   return (
     <View className={`flex-1 ${isDark ? 'bg-black' : 'bg-white'}`}>
-
       <FlatList
         data={dummyPosts}
         keyExtractor={(item) => item.id.toString()}
@@ -288,6 +297,12 @@ const Home = () => {
           flex: 1,
           backgroundColor: isDark ? '#000000' : '#FFFFFF'
         }}
+      />
+      
+      {/* Sidebar */}
+      <Sidebar 
+        isVisible={sidebarVisible} 
+        onClose={() => setSidebarVisible(false)} 
       />
     </View>
   )
