@@ -12,7 +12,8 @@ import {
   updateProfile,
   deactivateAccount,
   checkUsername,
-  checkEmail
+  checkEmail,
+  verifyAuthToken
 } from '../controllers/authController';
 import { authenticate } from '../middleware/auth';
 
@@ -34,5 +35,6 @@ router.post('/resend-verification', authenticate, resendVerification);
 router.put('/change-password', authenticate, changePassword);
 router.put('/profile', authenticate, updateProfile);
 router.delete('/deactivate', authenticate, deactivateAccount);
+router.get('/verify-token', authenticate, verifyAuthToken); // Add this line
 
 export default router;

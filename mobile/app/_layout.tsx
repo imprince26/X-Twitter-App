@@ -1,46 +1,53 @@
-import { Slot } from 'expo-router';
-import { Suspense, useEffect, useState } from 'react';
+// filepath: d:\React-Native\Twitter\mobile\app\_layout.tsx
+import { Slot, useRouter, useSegments } from 'expo-router';
+import { Suspense, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { useColorScheme } from 'nativewind';
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView } from 'react-native-safe-area-context';
 import XLoader from '@/components/XLoader';
+import { AuthProvider, useAuth } from '@/context/authContext';
 import './global.css';
+
+function RootLayoutNav() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return; // Don't redirect while checking auth status
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!isAuthenticated && !inAuthGroup) {
+      // Redirect to auth if not authenticated
+      router.replace('/(auth)/auth');
+    } else if (isAuthenticated && inAuthGroup) {
+      // Redirect to home if authenticated and in auth group
+      router.replace('/(home)');
+    }
+  }, [isAuthenticated, isLoading, segments]);
+
+  if (isLoading) {
+    return <XLoader />;
+  }
+
+  return <Slot />;
+}
 
 export default function RootLayout() {
   const { colorScheme } = useColorScheme();
-  const [authenticated, setAuthenticated] = useState(false);
-
-  // useEffect(() => {
-  //   let mounted = true;
-  //   (async () => {
-  //     try {
-  //       const token = await AsyncStorage.getItem('TwitterToken');
-  //       if (!mounted) return;
-  //       setAuthenticated(!!token);
-  //     } finally {
-  //       if (mounted) setChecking(false);
-  //     }
-  //   })();
-  //   return () => {
-  //     mounted = false;
-  //   };
-  // }, []);
-
-  // if (checking) return <XLoader />;
-
-  // if (!authenticated) {
-  //   return <Redirect href="/auth" />;
-  // }
 
   return (
-    <SafeAreaView className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-white'}`}>
-      <Suspense fallback={<XLoader />}>
-        <View className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-x-bg-light'}`}>
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          <Slot />
-        </View>
-      </Suspense>
-    </SafeAreaView>
+    <AuthProvider>
+      <SafeAreaView className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-white'}`}>
+        <Suspense fallback={<XLoader />}>
+          <View className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-x-bg-light'}`}>
+            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+            <RootLayoutNav />
+          </View>
+        </Suspense>
+      </SafeAreaView>
+    </AuthProvider>
   );
 }

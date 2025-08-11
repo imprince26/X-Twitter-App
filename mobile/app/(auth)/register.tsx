@@ -12,6 +12,8 @@ import axios from 'axios';
 import { router, useLocalSearchParams } from 'expo-router';
 import CustomInput from '../../components/CustomInput';
 import { api } from '@/utils/api';
+import { useAuth } from '@/context/authContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Types
 interface BasicInfoForm {
@@ -76,6 +78,7 @@ const Register = () => {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const params = useLocalSearchParams();
+  const { checkAuthStatus } = useAuth();
 
   // States
   const [currentStep, setCurrentStep] = useState<'basic' | 'password' | 'verification'>('basic');
@@ -270,6 +273,15 @@ const Register = () => {
       const response = await api.post('/auth/verify-email', { token });
       
       if (response.data.success) {
+        // Store token and user data if login is automatic after verification
+        if (response.data.token && response.data.user) {
+          await Promise.all([
+            AsyncStorage.setItem('TwitterToken', response.data.token),
+            AsyncStorage.setItem('TwitterUser', JSON.stringify(response.data.user)),
+          ]);
+          await checkAuthStatus(); // This will update the auth context
+        }
+        
         Alert.alert(
           'Email Verified', 
           'Your account has been successfully verified! Welcome to Twitter.',
@@ -284,7 +296,7 @@ const Register = () => {
     } finally {
       setVerifying(false);
     }
-  }, []);
+  }, [checkAuthStatus]);
 
   // Handle URL verification from input
   const handleUrlVerification = useCallback(async () => {

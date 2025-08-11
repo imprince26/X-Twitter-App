@@ -933,6 +933,38 @@ export const checkEmail = async (
   }
 };
 
+export const verifyAuthToken = async (req: Request, res: Response) => {
+  try {
+    // The user should be available from the auth middleware
+    const user = (req as any).user;
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        isVerified: user.isVerified
+      }
+    });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Token verification failed'
+    });
+  }
+};
+
 export default {
   register,
   login,
