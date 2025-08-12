@@ -6,7 +6,7 @@ import http from 'http';
 import { connectDB } from './config/db';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/authRoute';
-// import postsRoutes from './routes/posts';
+import postsRoutes from './routes/postRoute';
 import usersRoutes from './routes/userRoute';
 // import followsRoutes from './routes/follows';
 // import messagesRoutes from './routes/messages';
@@ -49,8 +49,8 @@ app.use(rateLimit({
 
 // Routes
 app.use('/api/auth', authRoutes);
-// app.use('/api/posts', postsRoutes);
-// app.use('/api/user', usersRoutes);
+app.use('/api/posts', postsRoutes);
+app.use('/api/user', usersRoutes);
 // app.use('/api/follows', followsRoutes);
 // app.use('/api/messages', messagesRoutes);
 // app.use('/api/notifications', notificationsRoutes);

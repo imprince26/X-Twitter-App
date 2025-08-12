@@ -34,7 +34,6 @@ const hashtagSchema = new Schema<IHashtag>({
   timestamps: true
 });
 
-hashtagSchema.index({ name: 1 });
 hashtagSchema.index({ count: -1 });
 hashtagSchema.index({ isTrending: 1, trendingRank: 1 });
 

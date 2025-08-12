@@ -35,6 +35,6 @@ router.post('/resend-verification', authenticate, resendVerification);
 router.put('/change-password', authenticate, changePassword);
 router.put('/profile', authenticate, updateProfile);
 router.delete('/deactivate', authenticate, deactivateAccount);
-router.get('/verify-token', authenticate, verifyAuthToken); // Add this line
+router.get('/verify-token', authenticate, verifyAuthToken);
 
 export default router;
