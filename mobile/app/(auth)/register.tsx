@@ -8,7 +8,6 @@ import { useColorScheme } from 'nativewind';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import axios from 'axios';
 import { router, useLocalSearchParams } from 'expo-router';
 import CustomInput from '../../components/CustomInput';
 import { api } from '@/utils/api';

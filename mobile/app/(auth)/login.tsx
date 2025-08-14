@@ -7,7 +7,7 @@ import { useColorScheme } from 'nativewind';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import CustomInput from '@/components/CustomInput';
 import { useAuth } from '@/context/authContext';
 
@@ -32,6 +32,7 @@ const Login = () => {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { login, isLoading } = useAuth();
+  const router = useRouter();
   
   const [showPassword, setShowPassword] = useState(false);
   const [currentStep, setCurrentStep] = useState<'identifier' | 'password'>('identifier');
@@ -195,7 +196,7 @@ const Login = () => {
           />
         </View>
 
-        <TouchableOpacity onPress={() => router.push('/ForgotPassword')} className="mb-4">
+        <TouchableOpacity onPress={() => router.push('/forgot-password')} className="mb-4">
           <Text className={`text-sm ${isDark ? 'text-blue-400' : 'text-blue-500'}`}>
             Forgot password?
           </Text>
@@ -253,7 +254,7 @@ const Login = () => {
           style={{ marginBottom: bottomViewAnimated }}
         >
           {currentStep === 'identifier' && (
-            <TouchableOpacity onPress={() => router.push('/ForgotPassword')}>
+            <TouchableOpacity onPress={() => router.push('/forgot-password')}>
               <Text className={`text-sm mb-4 ${isDark ? 'text-blue-400' : 'text-blue-500'}`}>
                 Forgot password?
               </Text>

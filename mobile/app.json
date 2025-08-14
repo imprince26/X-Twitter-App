@@ -8,16 +8,17 @@
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-  "ios": {
+    "ios": {
       "supportsTablet": true,
       "userInterfaceStyle": "automatic"
     },
-   "android": {
+    "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "userInterfaceStyle": "automatic"
+      "userInterfaceStyle": "automatic",
+      "package": "com.imprince26.X"
     },
     "web": {
       "bundler": "metro",

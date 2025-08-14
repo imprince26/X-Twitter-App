@@ -10,6 +10,8 @@ interface User {
   name: string;
   avatar?: string;
   isVerified: boolean;
+  followersCount?: number;
+  followingCount?: number;
 }
 
 interface AuthContextType {
@@ -20,6 +22,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   checkAuthStatus: () => Promise<void>;
+  fetchUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,6 +57,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error clearing auth data:', error);
     }
   }, []);
+
+  const fetchUserProfile = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await api.get('/auth/me');
+      if (response.data.success) {
+        setUser(prevUser => ({ ...prevUser, ...response.data.data }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+    }
+  }, [token]);
 
   const logout = useCallback(async () => {
     try {
@@ -118,6 +133,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (isTokenValid) {
             setToken(storedToken);
             setUser(userData);
+            await fetchUserProfile();
           } else {
             await clearAuthData();
           }
@@ -137,7 +153,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [clearAuthData, verifyStoredToken]);
+  }, [clearAuthData, verifyStoredToken, fetchUserProfile]);
 
   const login = useCallback(async (identifier: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
@@ -177,6 +193,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         setToken(newToken);
         setUser(userData);
+        await fetchUserProfile();
 
         return { success: true };
       } else {
@@ -211,7 +228,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [fetchUserProfile]);
 
   // Check authentication status on app start
   useEffect(() => {
@@ -219,34 +236,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [checkAuthStatus]);
 
   // Set up API interceptor for token
-  useEffect(() => {
-    const requestInterceptor = api.interceptors.request.use(
-      (config) => {
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error)
-    );
+  // useEffect(() => {
+  //   const requestInterceptor = api.interceptors.request.use(
+  //     (config) => {
+  //       if (token) {
+  //         config.headers.Authorization = `Bearer ${token}`;
+  //       }
+  //       return config;
+  //     },
+  //     (error) => Promise.reject(error)
+  //   );
 
-    const responseInterceptor = api.interceptors.response.use(
-      (response) => response,
-      async (error) => {
-        if (error.response?.status === 401 && token) {
-          // Token expired or invalid
-          console.log('Token expired, logging out...');
-          await logout();
-        }
-        return Promise.reject(error);
-      }
-    );
+  //   const responseInterceptor = api.interceptors.response.use(
+  //     (response) => response,
+  //     async (error) => {
+  //       if (error.response?.status === 401 && token) {
+  //         // Token expired or invalid
+  //         console.log('Token expired, logging out...');
+  //         await logout();
+  //       }
+  //       return Promise.reject(error);
+  //     }
+  //   );
 
-    return () => {
-      api.interceptors.request.eject(requestInterceptor);
-      api.interceptors.response.eject(responseInterceptor);
-    };
-  }, [token, logout]);
+  //   return () => {
+  //     api.interceptors.request.eject(requestInterceptor);
+  //     api.interceptors.response.eject(responseInterceptor);
+  //   };
+  // }, [token, logout]);
 
   const contextValue = React.useMemo(() => ({
     user,
@@ -256,7 +273,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     isAuthenticated,
     checkAuthStatus,
-  }), [user, token, login, logout, isLoading, isAuthenticated, checkAuthStatus]);
+    fetchUserProfile,
+  }), [user, token, login, logout, isLoading, isAuthenticated, checkAuthStatus, fetchUserProfile]);
 
   return (
     <AuthContext.Provider value={contextValue}>

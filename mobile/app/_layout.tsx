@@ -1,4 +1,3 @@
-// filepath: d:\React-Native\Twitter\mobile\app\_layout.tsx
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { Suspense, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
@@ -15,15 +14,13 @@ function RootLayoutNav() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoading) return; // Don't redirect while checking auth status
+    if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!isAuthenticated && !inAuthGroup) {
-      // Redirect to auth if not authenticated
       router.replace('/(auth)/auth');
     } else if (isAuthenticated && inAuthGroup) {
-      // Redirect to home if authenticated and in auth group
       router.replace('/(home)');
     }
   }, [isAuthenticated, isLoading, segments]);
