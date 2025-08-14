@@ -4,13 +4,12 @@ interface PasswordResetEmailProps {
   name: string;
   email: string;
   username: string;
-  resetToken: string;
+  resetCode: string;
   baseUrl?: string;
 }
 
 const getPasswordResetEmailHTML = (props: PasswordResetEmailProps): string => {
-  const { name, username, resetToken, baseUrl = process.env.CLIENT_URL || 'http://localhost:3000' } = props;
-  const resetUrl = `${baseUrl}/auth/reset-password?token=${resetToken}`;
+  const { name, username, resetCode, baseUrl = process.env.CLIENT_URL || 'http://localhost:3000' } = props;
 
   return `
     <!DOCTYPE html>
@@ -28,8 +27,9 @@ const getPasswordResetEmailHTML = (props: PasswordResetEmailProps): string => {
             .content { padding: 40px 30px; }
             .greeting { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #0f1419; }
             .message { font-size: 16px; line-height: 1.5; margin-bottom: 30px; color: #536471; }
-            .button { display: inline-block; background-color: #1d9bf0; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 9999px; font-weight: bold; font-size: 15px; margin: 20px 0; }
-            .button:hover { background-color: #1a8cd8; }
+            .code-container { background-color: #f7f9fa; border: 2px dashed #e0245e; border-radius: 8px; padding: 30px; text-align: center; margin: 30px 0; }
+            .reset-code { font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #e0245e; font-family: 'Courier New', monospace; }
+            .code-label { font-size: 14px; color: #536471; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
             .footer { background-color: #f7f9fa; padding: 30px; text-align: center; border-top: 1px solid #e1e8ed; }
             .footer-text { font-size: 14px; color: #536471; margin-bottom: 15px; }
             .highlight { background-color: #f7f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #1d9bf0; margin: 20px 0; }
@@ -41,7 +41,7 @@ const getPasswordResetEmailHTML = (props: PasswordResetEmailProps): string => {
                 .container { width: 100% !important; }
                 .content { padding: 20px 15px !important; }
                 .greeting { font-size: 20px !important; }
-                .button { display: block !important; text-align: center !important; width: 100% !important; }
+                .reset-code { font-size: 24px !important; letter-spacing: 4px !important; }
             }
         </style>
     </head>
@@ -58,21 +58,17 @@ const getPasswordResetEmailHTML = (props: PasswordResetEmailProps): string => {
                     Hi ${name},<br><br>
                     
                     We received a request to reset the password for your X account (@${username}). 
-                    If you made this request, click the button below to reset your password.
+                    If you made this request, enter the code below in the app to reset your password.
                 </div>
 
-                <div style="text-align: center;">
-                    <a href="${resetUrl}" class="button">Reset Password</a>
-                </div>
-
-                <div class="message">
-                    Or copy and paste this link in your browser:<br>
-                    <a href="${resetUrl}" style="color: #1d9bf0; word-break: break-all;">${resetUrl}</a>
+                <div class="code-container">
+                    <div class="code-label">Your password reset code</div>
+                    <div class="reset-code">${resetCode}</div>
                 </div>
 
                 <div class="highlight">
-                    <strong>Security Notice:</strong> This password reset link will expire in 1 hour for security reasons. 
-                    If you don't reset your password within this time, you'll need to request a new reset link.
+                    <strong>Security Notice:</strong> This password reset code will expire in 10 minutes for security reasons. 
+                    If you don't reset your password within this time, you'll need to request a new reset code.
                 </div>
 
                 <div class="divider"></div>
@@ -87,6 +83,10 @@ const getPasswordResetEmailHTML = (props: PasswordResetEmailProps): string => {
                         <li>Using a strong, unique password</li>
                         <li>Checking your recent login activity</li>
                     </ul>
+                </div>
+
+                <div class="warning" style="margin-top: 20px;">
+                    <strong>Security tip:</strong> Never share this code with anyone. X will never ask for your reset code via phone or other emails.
                 </div>
             </div>
             

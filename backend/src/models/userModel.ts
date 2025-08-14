@@ -2,6 +2,7 @@ import { Schema, model, Document } from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import validator from "validator";
+import crypto from "crypto";
 
 export interface IUser extends Document {
   // User ID
@@ -19,9 +20,9 @@ export interface IUser extends Document {
   // Authentication
   password: string;
   isEmailVerified: boolean;
-  emailVerificationToken?: string;
+  emailVerificationCode?: string;
   emailVerificationExpires?: Date;
-  passwordResetToken?: string;
+  passwordResetCode?: string;
   passwordResetExpires?: Date;
 
   // Profile
@@ -86,8 +87,8 @@ export interface IUser extends Document {
   // Methods
   comparePassword(candidatePassword: string): Promise<boolean>;
   generateAuthToken(): string;
-  generateEmailVerificationToken(): string;
-  generatePasswordResetToken(): string;
+  generateEmailVerificationCode(): string;
+  generatePasswordResetCode(): string;
   isAccountLocked(): boolean;
   incrementLoginAttempts(): Promise<void>;
   resetLoginAttempts(): Promise<void>;
@@ -208,7 +209,7 @@ const userSchema = new Schema<IUser>(
       default: false,
     },
 
-    emailVerificationToken: {
+    emailVerificationCode: {
       type: String,
       select: false,
     },
@@ -218,7 +219,7 @@ const userSchema = new Schema<IUser>(
       select: false,
     },
 
-    passwordResetToken: {
+    passwordResetCode: {
       type: String,
       select: false,
     },
@@ -467,32 +468,24 @@ userSchema.methods.generateAuthToken = function (): string {
   });
 };
 
-// Method to generate email verification token
-userSchema.methods.generateEmailVerificationToken = function (): string {
-  const token = jwt.sign(
-    { userId: this._id, type: "email-verification" },
-    process.env.JWT_SECRET!,
-    { expiresIn: "24h" }
-  );
+// Method to generate 6-digit email verification code
+userSchema.methods.generateEmailVerificationCode = function (): string {
+  const code = crypto.randomInt(100000, 999999).toString();
+  
+  this.emailVerificationCode = code;
+  this.emailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-  this.emailVerificationToken = token;
-  this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-  return token;
+  return code;
 };
 
-// Method to generate password reset token
-userSchema.methods.generatePasswordResetToken = function (): string {
-  const token = jwt.sign(
-    { userId: this._id, type: "password-reset" },
-    process.env.JWT_SECRET!,
-    { expiresIn: "1h" }
-  );
+// Method to generate 6-digit password reset code
+userSchema.methods.generatePasswordResetCode = function (): string {
+  const code = crypto.randomInt(100000, 999999).toString();
+  
+  this.passwordResetCode = code;
+  this.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-  this.passwordResetToken = token;
-  this.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-  return token;
+  return code;
 };
 
 // Method to check if account is locked
@@ -534,9 +527,9 @@ userSchema.methods.toJSON = function () {
 
   // Remove sensitive fields
   delete userObject.password;
-  delete userObject.emailVerificationToken;
+  delete userObject.emailVerificationCode;
   delete userObject.emailVerificationExpires;
-  delete userObject.passwordResetToken;
+  delete userObject.passwordResetCode;
   delete userObject.passwordResetExpires;
   delete userObject.twoFactorSecret;
   delete userObject.loginAttempts;
@@ -579,4 +572,3 @@ userSchema.statics.searchUsers = function (query: string, limit: number = 20) {
 };
 
 export const User = model<IUser>("User", userSchema);
-export default User;

@@ -3,13 +3,12 @@ import { emailService } from '../sendMail';
 interface VerificationEmailProps {
   name: string;
   email: string;
-  verificationToken: string;
+  verificationCode: string;
   baseUrl?: string;
 }
 
 const getVerificationEmailHTML = (props: VerificationEmailProps): string => {
-  const { name, verificationToken, baseUrl = process.env.CLIENT_URL || 'http://localhost:3000' } = props;
-  const verificationUrl = `${baseUrl}/auth/verify-email?token=${verificationToken}`;
+  const { name, verificationCode, baseUrl = process.env.CLIENT_URL || 'http://localhost:3000' } = props;
 
   return `
     <!DOCTYPE html>
@@ -27,17 +26,19 @@ const getVerificationEmailHTML = (props: VerificationEmailProps): string => {
             .content { padding: 40px 30px; }
             .greeting { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #0f1419; }
             .message { font-size: 16px; line-height: 1.5; margin-bottom: 30px; color: #536471; }
-            .button { display: inline-block; background-color: #1d9bf0; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 9999px; font-weight: bold; font-size: 15px; margin: 20px 0; }
-            .button:hover { background-color: #1a8cd8; }
+            .code-container { background-color: #f7f9fa; border: 2px dashed #1d9bf0; border-radius: 8px; padding: 30px; text-align: center; margin: 30px 0; }
+            .verification-code { font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1d9bf0; font-family: 'Courier New', monospace; }
+            .code-label { font-size: 14px; color: #536471; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
             .footer { background-color: #f7f9fa; padding: 30px; text-align: center; border-top: 1px solid #e1e8ed; }
             .footer-text { font-size: 14px; color: #536471; margin-bottom: 15px; }
             .highlight { background-color: #f7f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #1d9bf0; margin: 20px 0; }
+            .warning { background-color: #fef2f2; padding: 20px; border-radius: 8px; border-left: 4px solid #e0245e; margin: 20px 0; color: #e0245e; }
             .divider { height: 1px; background-color: #e1e8ed; margin: 30px 0; }
             @media only screen and (max-width: 600px) {
                 .container { width: 100% !important; }
                 .content { padding: 20px 15px !important; }
                 .greeting { font-size: 20px !important; }
-                .button { display: block !important; text-align: center !important; width: 100% !important; }
+                .verification-code { font-size: 24px !important; letter-spacing: 4px !important; }
             }
         </style>
     </head>
@@ -54,27 +55,27 @@ const getVerificationEmailHTML = (props: VerificationEmailProps): string => {
                     Hi ${name},<br><br>
                     
                     Thanks for signing up for X! To complete your registration and start using your account, 
-                    please verify your email address by clicking the button below.
+                    please enter the verification code below in the app.
                 </div>
 
-                <div style="text-align: center;">
-                    <a href="${verificationUrl}" class="button">Verify Email Address</a>
-                </div>
-
-                <div class="message">
-                    Or copy and paste this link in your browser:<br>
-                    <a href="${verificationUrl}" style="color: #1d9bf0; word-break: break-all;">${verificationUrl}</a>
+                <div class="code-container">
+                    <div class="code-label">Your verification code</div>
+                    <div class="verification-code">${verificationCode}</div>
                 </div>
 
                 <div class="highlight">
-                    <strong>Important:</strong> This verification link will expire in 24 hours for security reasons. 
-                    If you don't verify your email within this time, you'll need to request a new verification email.
+                    <strong>Important:</strong> This verification code will expire in 10 minutes for security reasons. 
+                    If you don't verify your email within this time, you'll need to request a new verification code.
                 </div>
 
                 <div class="divider"></div>
 
                 <div class="message">
                     If you didn't create an account with X, you can safely ignore this email.
+                </div>
+
+                <div class="warning">
+                    <strong>Security tip:</strong> Never share this code with anyone. X will never ask for your verification code via phone or email.
                 </div>
             </div>
             
