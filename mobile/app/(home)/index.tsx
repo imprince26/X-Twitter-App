@@ -9,7 +9,6 @@ import { useAuth } from '@/context/authContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Sidebar from '@/components/Sidebar';
 
-// Dummy data for X posts
 const dummyPosts = [
   {
     id: 1,
@@ -163,7 +162,6 @@ const dummyPosts = [
   },
 ];
 
-// Helper function to format numbers
 const formatNumber = (num: number) => {
   if (num >= 1000000) {
     return (num / 1000000).toFixed(1) + 'M';
