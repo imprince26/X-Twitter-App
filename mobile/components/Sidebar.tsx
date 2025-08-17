@@ -1,22 +1,36 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  interpolate,
+  runOnJS,
 } from 'react-native-reanimated';
-import { PanGestureHandler } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useAuth } from '@/context/authContext';
 import { FontAwesome, Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
 
 const { width } = Dimensions.get('window');
-const DRAWER_WIDTH = width * 0.8;
+const DRAWER_WIDTH = width * 0.9;
 
-const Sidebar = ({ children, closeDrawer, isDrawerOpen }) => {
-  const { user } = useAuth();
-  const { colorScheme } = useColorScheme();
+interface User {
+  avatar?: string;
+  name?: string;
+  username?: string;
+  followingCount?: number;
+  followersCount?: number;
+}
+
+interface SidebarProps {
+  children: React.ReactNode;
+  closeDrawer: () => void;
+  isDrawerOpen: boolean;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ children, closeDrawer, isDrawerOpen }) => {
+  const { user }: { user: User | null } = useAuth();
+  const { colorScheme, toggleColorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const translateX = useSharedValue(-DRAWER_WIDTH);
 
@@ -32,100 +46,216 @@ const Sidebar = ({ children, closeDrawer, isDrawerOpen }) => {
     } else {
       translateX.value = withTiming(-DRAWER_WIDTH);
     }
-  }, [isDrawerOpen]);
+  }, [isDrawerOpen, translateX]);
 
-  const onGestureEvent = (event) => {
-    if (event.nativeEvent.translationX < 0) {
-      translateX.value = event.nativeEvent.translationX;
-    }
+  const panGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      if (event.translationX < 0) {
+        translateX.value = Math.max(event.translationX, -DRAWER_WIDTH);
+      }
+    })
+    .onEnd((event) => {
+      if (event.translationX < -width / 4) {
+        translateX.value = withTiming(-DRAWER_WIDTH);
+        runOnJS(closeDrawer)();
+      } else {
+        translateX.value = withTiming(0);
+      }
+    });
+
+  const handleSwitchTheme = () => {
+    toggleColorScheme();
   };
 
-  const onGestureEnd = (event) => {
-    if (event.nativeEvent.translationX < -width / 4) {
-      closeDrawer();
-    } else {
-      translateX.value = withTiming(0);
-    }
+  const handleProfilePress = (): void => {
+    // Navigate to profile
+    console.log('Navigate to profile');
+  };
+
+  const handleBookmarksPress = (): void => {
+    // Navigate to bookmarks
+    console.log('Navigate to bookmarks');
+  };
+
+  const handleListsPress = (): void => {
+    // Navigate to lists
+    console.log('Navigate to lists');
+  };
+
+  const handleFollowerRequestsPress = (): void => {
+    // Navigate to follower requests
+    console.log('Navigate to follower requests');
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <PanGestureHandler onGestureEvent={onGestureEvent} onEnded={onGestureEnd}>
-        <Animated.View style={[styles.drawer, animatedStyle, { backgroundColor: isDark ? '#000' : '#fff' }]}>
-          <View style={{ padding: 20 }}>
+    <View className="flex-1">
+      <GestureDetector gesture={panGesture}>
+        <Animated.View 
+          style={[
+            animatedStyle,
+            {
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: 0,
+              width: DRAWER_WIDTH,
+              zIndex: 100,
+            }
+          ]}
+          className={`${isDark ? 'bg-black' : 'bg-white'}`}
+        >
+          {/* User Section */}
+          <View className="p-5">
             {user?.avatar ? (
-              <Image source={{ uri: user.avatar }} style={{ width: 60, height: 60, borderRadius: 30 }} />
+              <Image 
+                source={{ uri: user.avatar }} 
+                className="w-14 h-14 rounded-full"
+              />
             ) : (
-              <View
-                style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: 30,
-                  backgroundColor: isDark ? '#333' : '#ccc',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
+              <View className={`w-14 h-14 items-center justify-center rounded-full`}>
                 <FontAwesome name="user" size={30} color={isDark ? '#fff' : '#000'} />
               </View>
             )}
-            <Text style={{ color: isDark ? '#fff' : '#000', fontSize: 20, fontWeight: 'bold', marginTop: 10 }}>
-              {user?.name}
+            
+            <Text className={`${isDark ? 'text-white' : 'text-black'} text-xl font-bold mt-2.5`}>
+              {user?.name || 'User Name'}
             </Text>
-            <Text style={{ color: 'gray', fontSize: 16 }}>@{user?.username}</Text>
-            <View style={{ flexDirection: 'row', marginTop: 10 }}>
-              <Text style={{ color: isDark ? '#fff' : '#000', marginRight: 10 }}>
-                <Text style={{ fontWeight: 'bold' }}>{user?.followingCount || 0}</Text> Following
+            
+            <Text className="text-gray-500 text-base">
+              @{user?.username || 'username'}
+            </Text>
+            
+            <View className="flex-row mt-2.5">
+              <Text className={`${isDark ? 'text-white' : 'text-black'} mr-2.5`}>
+                <Text className="font-bold">{user?.followingCount || 0}</Text>
+                <Text className='ml-0.5 text-gray-500 dark:text-gray-500 '> Following</Text>
               </Text>
-              <Text style={{ color: isDark ? '#fff' : '#000' }}>
-                <Text style={{ fontWeight: 'bold' }}>{user?.followersCount || 0}</Text> Followers
+              <Text className={`${isDark ? 'text-white' : 'text-black'}`}>
+                <Text className="font-bold">{user?.followersCount || 0}</Text> 
+                 <Text className='ml-0.5 text-gray-500 dark:text-gray-500 '> Followers</Text>
               </Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={{
-              position: 'absolute',
-              top: 40,
-              right: 10,
-            }}
-            onPress={closeDrawer}
-          >
-            <Feather name="x" size={24} color={isDark ? '#fff' : '#000'} />
-          </TouchableOpacity>
-          <View style={{ marginTop: 20 }}>
-            <TouchableOpacity style={{ padding: 15, flexDirection: 'row', alignItems: 'center' }}>
+
+
+          {/* Menu Section */}
+          <View className="mt-5">
+            <TouchableOpacity 
+              className="p-3.75 flex-row items-center"
+              onPress={handleProfilePress}
+              accessibilityLabel="Profile"
+              accessibilityRole="button"
+            >
               <FontAwesome name="user" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text style={{ color: isDark ? '#fff' : '#000', marginLeft: 15, fontSize: 18 }}>Profile</Text>
+              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
+                Profile
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={{ padding: 15, flexDirection: 'row', alignItems: 'center' }}>
+
+            <TouchableOpacity 
+              className="p-3.75 flex-row items-center"
+              onPress={handleBookmarksPress}
+              accessibilityLabel="Bookmarks"
+              accessibilityRole="button"
+            >
               <FontAwesome name="bookmark" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text style={{ color: isDark ? '#fff' : '#000', marginLeft: 15, fontSize: 18 }}>Bookmarks</Text>
+              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
+                Bookmarks
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={{ padding: 15, flexDirection: 'row', alignItems: 'center' }}>
+
+            <TouchableOpacity 
+              className="p-3.75 flex-row items-center"
+              onPress={handleListsPress}
+              accessibilityLabel="Lists"
+              accessibilityRole="button"
+            >
               <FontAwesome name="list-alt" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text style={{ color: isDark ? '#fff' : '#000', marginLeft: 15, fontSize: 18 }}>Lists</Text>
+              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
+                Lists
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={{ padding: 15, flexDirection: 'row', alignItems: 'center' }}>
+
+            <TouchableOpacity 
+              className="p-3.75 flex-row items-center"
+              onPress={handleFollowerRequestsPress}
+              accessibilityLabel="Follower requests"
+              accessibilityRole="button"
+            >
               <FontAwesome name="user-plus" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text style={{ color: isDark ? '#fff' : '#000', marginLeft: 15, fontSize: 18 }}>Follower requests</Text>
+              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
+                Follower requests
+              </Text>
+            </TouchableOpacity>
+
+            {/* Additional Menu Items for X (Twitter) */}
+            <TouchableOpacity 
+              className="p-3.75 flex-row items-center"
+              accessibilityLabel="Spaces"
+              accessibilityRole="button"
+            >
+              <FontAwesome name="microphone" size={24} color={isDark ? '#fff' : '#000'} />
+              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
+                Spaces
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              className="p-3.75 flex-row items-center"
+              accessibilityLabel="Monetization"
+              accessibilityRole="button"
+            >
+              <FontAwesome name="dollar" size={24} color={isDark ? '#fff' : '#000'} />
+              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
+                Monetization
+              </Text>
+            </TouchableOpacity>
+
+            {/* Divider */}
+            <View className={`h-px mx-3.75 my-2.5 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`} />
+
+            <TouchableOpacity 
+              className="p-3.75 flex-row items-center"
+              accessibilityLabel="Settings and privacy"
+              accessibilityRole="button"
+            >
+              <FontAwesome name="cog" size={24} color={isDark ? '#fff' : '#000'} />
+              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
+                Settings and privacy
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              className="p-3.75 flex-row items-center"
+              accessibilityLabel="Help Center"
+              accessibilityRole="button"
+            >
+              <FontAwesome name="question-circle" size={24} color={isDark ? '#fff' : '#000'} />
+              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
+                Help Center
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Footer - switch theme */}
+          <View className="mt-5">
+            <TouchableOpacity 
+              className="p-3.75 flex-row items-center"
+              onPress={handleSwitchTheme}
+              accessibilityLabel="Switch theme"
+              accessibilityRole="button"
+            >
+              <Feather name="moon" size={24} color={isDark ? '#fff' : '#000'} />
+              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
+                Switch Theme
+              </Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
-      </PanGestureHandler>
+      </GestureDetector>
       {children}
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  drawer: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: DRAWER_WIDTH,
-    zIndex: 100,
-  },
-});
 
 export default Sidebar;
