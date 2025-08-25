@@ -10,13 +10,13 @@ interface CustomInputProps extends Omit<TextInputProps, 'value' | 'onChangeText'
   onBlur?: () => void
 }
 
-const CustomInput: React.FC<CustomInputProps> = ({ 
-  labelText, 
-  value, 
-  setValue, 
+const CustomInput: React.FC<CustomInputProps> = ({
+  labelText,
+  value,
+  setValue,
   error,
   onBlur,
-  ...textInputProps 
+  ...textInputProps
 }) => {
   const { colorScheme } = useColorScheme()
   const isDark = colorScheme === 'dark'
@@ -36,32 +36,28 @@ const CustomInput: React.FC<CustomInputProps> = ({
 
   return (
     <View className='mb-4'>
-      <View className={`relative border-2 rounded-md ${
-        hasError 
-          ? 'border-red-500' 
-          : isFocused 
+      <View className={`relative border-2 rounded-md ${hasError
+          ? 'border-red-500'
+          : isFocused
             ? (isDark ? 'border-blue-400' : 'border-blue-500')
             : (isDark ? 'border-gray-600' : 'border-gray-300')
-      }`}>
-        <Text className={`absolute left-3 px-1 text-sm z-10 ${
-          isFocused || hasValue 
-            ? `top-[-10px] ${
-                hasError 
-                  ? 'text-red-500' 
-                  : isFocused 
-                    ? (isDark ? 'text-blue-400' : 'text-blue-500')
-                    : (isDark ? 'text-gray-400' : 'text-gray-600')
-              } ${isDark ? 'bg-black' : 'bg-white'}`
-            : `top-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`
         }`}>
+        <Text className={`absolute left-3 px-1 text-sm z-10 ${isFocused || hasValue
+            ? `top-[-10px] ${hasError
+              ? 'text-red-500'
+              : isFocused
+                ? (isDark ? 'text-blue-400' : 'text-blue-500')
+                : (isDark ? 'text-gray-400' : 'text-gray-600')
+            } ${isDark ? 'bg-black' : 'bg-white'}`
+            : `top-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`
+          }`}>
           {labelText}
         </Text>
-        
-       <TextInput
-          className={`px-3 py-4 text-base ${
-            isDark ? 'text-white bg-black' : 'text-black bg-white'
-          }`}
-          value={value ?? ''} // guard undefined
+
+        <TextInput
+          className={`px-3 py-4 text-base ${isDark ? 'text-white bg-black' : 'text-black bg-white'
+            }`}
+          value={value ?? ''} 
           onChangeText={setValue}
           onFocus={handleFocus}
           onBlur={handleBlur}
@@ -69,7 +65,7 @@ const CustomInput: React.FC<CustomInputProps> = ({
           {...textInputProps}
         />
       </View>
-      
+
       {hasError && (
         <Text className='text-red-500 text-sm mt-1 ml-3'>
           {error}
