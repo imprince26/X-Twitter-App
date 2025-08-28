@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { useColorScheme } from 'nativewind';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import XLoader from '@/components/XLoader';
 import { AuthProvider, useAuth } from '@/context/authContext';
 import './global.css';
@@ -37,14 +38,16 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <SafeAreaView className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-white'}`}>
-        <Suspense fallback={<XLoader />}>
-          <View className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-x-bg-light'}`}>
-            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-            <RootLayoutNav />
-          </View>
-        </Suspense>
-      </SafeAreaView>
+      <GestureHandlerRootView>
+        <SafeAreaView className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-white'}`}>
+          <Suspense fallback={<XLoader />}>
+            <View className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-x-bg-light'}`}>
+              <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+              <RootLayoutNav />
+            </View>
+          </Suspense>
+        </SafeAreaView>
+      </GestureHandlerRootView>
     </AuthProvider>
   );
 }
