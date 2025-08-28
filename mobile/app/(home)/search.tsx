@@ -13,8 +13,6 @@ import Sidebar from '@/components/Sidebar';
 const Search = () => {
   const { colorScheme } = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const router = useRouter()
-  const queryClient = useQueryClient()
   const { data: user } = useUser()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   
@@ -26,40 +24,9 @@ const Search = () => {
     setIsDrawerOpen(false);
   };
 
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      await AsyncStorage.removeItem('TwitterToken')
-    },
-    onSuccess: () => {
-      queryClient.clear()
-      
-      router.replace('/(auth)/auth')
-    },
-    onError: (error) => {
-      console.error('Logout error:', error)
-      Alert.alert('Error', 'Failed to logout. Please try again.')
-    },
-  })
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            logoutMutation.mutate()
-          },
-        },
-      ]
-    )
-  }
+
+
 
   return (
     <Sidebar isDrawerOpen={isDrawerOpen} closeDrawer={() => setIsDrawerOpen(false)}>
@@ -79,23 +46,7 @@ const Search = () => {
                   </View>
                 )}
               </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleLogout}
-          activeOpacity={0.7}
-          disabled={logoutMutation.isPending}
-          className={`flex-row items-center px-3 py-2 rounded-full ${
-            logoutMutation.isPending ? 'bg-red-400' : 'bg-red-500'
-          }`}
-        >
-          <Ionicons 
-            name="log-out-outline" 
-            size={18} 
-            color="white" 
-          />
-          <Text className='text-white font-medium ml-2'>
-            {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
-          </Text>
-        </TouchableOpacity>
+     
       </View>
 
       {user && (

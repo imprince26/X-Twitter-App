@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, Image, Dimensions, Alert } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,7 +7,12 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { FontAwesome, Feather } from '@expo/vector-icons';
+import { FontAwesome } from '@expo/vector-icons';
+import { useRouter } from 'expo-router'
+import Ionicons from '@expo/vector-icons/Ionicons'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { api } from '../utils/api';
 import { useColorScheme } from 'nativewind';
 import { useUser } from '@/hooks/useAuth';
 
@@ -21,18 +26,20 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ children, closeDrawer, isDrawerOpen }) => {
-  const { data: user } = useUser();
   const { colorScheme, toggleColorScheme } = useColorScheme();
+  const { data: userData } = useUser()
   const isDark = colorScheme === 'dark';
   const translateX = useSharedValue(-DRAWER_WIDTH);
+  const router = useRouter()
+  const queryClient = useQueryClient()
+
+  const user = userData?.user
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateX: translateX.value }],
     };
   });
-  console.log("Sidebar",user)
-  console.log()
 
   React.useEffect(() => {
     if (isDrawerOpen) {
@@ -57,34 +64,45 @@ const Sidebar: React.FC<SidebarProps> = ({ children, closeDrawer, isDrawerOpen }
       }
     });
 
-  const handleSwitchTheme = () => {
-    toggleColorScheme();
-  };
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await AsyncStorage.removeItem('TwitterToken')
+    },
+    onSuccess: () => {
+      queryClient.clear()
 
-  const handleProfilePress = (): void => {
-    // Navigate to profile
-    console.log('Navigate to profile');
-  };
+      router.replace('/(auth)/auth')
+    },
+    onError: (error) => {
+      console.error('Logout error:', error)
+      Alert.alert('Error', 'Failed to logout. Please try again.')
+    },
+  })
 
-  const handleBookmarksPress = (): void => {
-    // Navigate to bookmarks
-    console.log('Navigate to bookmarks');
-  };
-
-  const handleListsPress = (): void => {
-    // Navigate to lists
-    console.log('Navigate to lists');
-  };
-
-  const handleFollowerRequestsPress = (): void => {
-    // Navigate to follower requests
-    console.log('Navigate to follower requests');
-  };
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: () => {
+            logoutMutation.mutate()
+          },
+        },
+      ]
+    )
+  }
 
   return (
-    <View className="flex-1">
+    <View className="flex-1 relative">
       <GestureDetector gesture={panGesture}>
-        <Animated.View 
+        <Animated.View
           style={[
             animatedStyle,
             {
@@ -101,8 +119,8 @@ const Sidebar: React.FC<SidebarProps> = ({ children, closeDrawer, isDrawerOpen }
           {/* User Section */}
           <View className="p-5">
             {user?.avatar ? (
-              <Image 
-                source={{ uri: user.avatar }} 
+              <Image
+                source={{ uri: user.avatar }}
                 className="w-14 h-14 rounded-full"
               />
             ) : (
@@ -110,26 +128,48 @@ const Sidebar: React.FC<SidebarProps> = ({ children, closeDrawer, isDrawerOpen }
                 <FontAwesome name="user" size={30} color={isDark ? '#fff' : '#000'} />
               </View>
             )}
-            
+
             <Text className={`${isDark ? 'text-white' : 'text-black'} text-xl font-bold mt-2.5`}>
               {user?.name || 'User Name'}
             </Text>
-            
+
             <Text className="text-gray-500 text-base">
               @{user?.username || 'username'}
             </Text>
-            
+
             <View className="flex-row mt-2.5">
               <Text className={`${isDark ? 'text-white' : 'text-black'} mr-2.5`}>
                 <Text className="font-bold">{user?.followingCount || 0}</Text>
                 <Text className='ml-0.5 text-gray-500 dark:text-gray-500 '> Following</Text>
               </Text>
               <Text className={`${isDark ? 'text-white' : 'text-black'}`}>
-                <Text className="font-bold">{user?.followersCount || 0}</Text> 
-                 <Text className='ml-0.5 text-gray-500 dark:text-gray-500 '> Followers</Text>
+                <Text className="font-bold">{user?.followersCount || 0}</Text>
+                <Text className='ml-0.5 text-gray-500 dark:text-gray-500 '> Followers</Text>
               </Text>
             </View>
-          </View>    
+          </View>
+
+          {/* logout button */}
+          <View className='absolute bottom-10 left-0 w-full px-5'>
+
+            <TouchableOpacity
+              onPress={handleLogout}
+              activeOpacity={0.7}
+              disabled={logoutMutation.isPending}
+              className={`flex-row items-center px-3 py-2 rounded-full ${logoutMutation.isPending ? 'bg-red-400' : 'bg-red-500'
+                }`}
+            >
+              <Ionicons
+                name="log-out-outline"
+                size={18}
+                color="white"
+              />
+              <Text className='text-white font-medium ml-2'>
+                {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
         </Animated.View>
       </GestureDetector>
       {children}

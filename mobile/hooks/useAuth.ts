@@ -5,19 +5,76 @@ import { api } from '../utils/api';
 import { Alert } from 'react-native';
 
 interface User {
-  id: string;
-  email: string;
+   _id: string;
+   id: string;
+
+  // Basic Information
   username: string;
-  name?: string;
-  verified?: boolean;
-  avatar?: string;
-  bio?: string;
-  location?: string;
-  website?: string;
-  dateOfBirth?: string;
-  dateJoined?: string;
-  followingCount?: number;
-  followersCount?: number;
+  email: string;
+  name: string;
+  bio: string;
+  location: string;
+  website: string;
+  dateOfBirth: Date;
+
+  // Profile
+  profilePicture: string;
+  coverImage: string;
+  isVerified: boolean;
+  verificationBadge: "blue" | "gold" | "gray" | null;
+
+  // Social
+  followersCount: number;
+  followingCount: number;
+  tweetsCount: number;
+  likesCount: number;
+
+  // Privacy & Security
+  isPrivate: boolean;
+  twoFactorEnabled: boolean;
+  twoFactorSecret?: string;
+  loginAttempts: number;
+  lockUntil?: Date;
+
+  // Account Status
+  isActive: boolean;
+  isSuspended: boolean;
+  suspensionReason?: string;
+  suspensionExpires?: Date;
+
+  // Admin & Moderation
+  isAdmin: boolean;
+  isModerator: boolean;
+  affiliatedAccounts: string[];
+
+  // Preferences
+  theme: "light" | "dark" | "auto";
+  language: string;
+  timezone: string;
+  notifications: {
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+    mentions: boolean;
+    follows: boolean;
+    likes: boolean;
+    retweets: boolean;
+    directMessages: boolean;
+  };
+
+  // Privacy Settings
+  privacy: {
+    allowDirectMessages: "everyone" | "following" | "verified" | "none";
+    allowTagging: "everyone" | "following" | "none";
+    discoverByEmail: boolean;
+    discoverByPhone: boolean;
+    showActivity: boolean;
+  };
+
+  // Timestamps
+  lastLogin: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface LoginCredentials {
@@ -68,9 +125,6 @@ export const useUser = () => {
         return null;
       }
     },
-    retry: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 };
 
