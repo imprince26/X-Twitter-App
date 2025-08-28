@@ -40,11 +40,11 @@ const Login = () => {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
   const queryClient = useQueryClient();
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [currentStep, setCurrentStep] = useState<'identifier' | 'password'>('identifier');
   const [userIdentifier, setUserIdentifier] = useState('');
-  
+
   const bottomViewAnimated = useRef(new Animated.Value(0)).current;
 
   // Form for identifier step
@@ -80,10 +80,10 @@ const Login = () => {
       if (data.success && data.data?.token && data.data?.user) {
         // Store token
         await AsyncStorage.setItem('TwitterToken', data.data.token);
-        
+
         // Update user data in cache
         queryClient.setQueryData(['user'], data.data.user);
-        
+
         // Navigate to home
         router.replace('/(home)');
       } else {
@@ -100,14 +100,13 @@ const Login = () => {
   // Check identifier mutation (optional - to validate identifier before password step)
   const checkIdentifierMutation = useMutation({
     mutationFn: async (identifier: string): Promise<CheckIdentifierResponse> => {
-      // Check if it's an email or username
       const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
       const endpoint = isEmail ? `/auth/check-email/${encodeURIComponent(identifier)}` : `/auth/check-username/${encodeURIComponent(identifier)}`;
-      
+
       const response = await api.get(endpoint);
       return {
         success: response.data.success,
-        exists: !response.data.available, // available=false means exists=true
+        exists: !response.data.available,
         message: response.data.message,
       };
     },
@@ -119,7 +118,6 @@ const Login = () => {
       }
     },
     onError: (error: any) => {
-      // If check fails, proceed to password step anyway (fallback)
       console.warn('Identifier check failed, proceeding to password step:', error);
       setCurrentStep('password');
     },
@@ -153,8 +151,7 @@ const Login = () => {
 
   const handleIdentifierSubmit = useCallback((data: { identifier: string }) => {
     setUserIdentifier(data.identifier);
-    
-    // Check if identifier exists (optional step)
+
     checkIdentifierMutation.mutate(data.identifier);
   }, [checkIdentifierMutation]);
 
@@ -163,7 +160,7 @@ const Login = () => {
       identifier: userIdentifier,
       password: data.password,
     };
-    
+
     loginMutation.mutate(credentials);
   }, [userIdentifier, loginMutation]);
 
@@ -291,12 +288,11 @@ const Login = () => {
               {['identifier', 'password'].map((step, index) => (
                 <View
                   key={step}
-                  className={`flex-1 h-1 mx-1 rounded-full ${
-                    currentStep === step ||
-                    (currentStep === 'password' && step === 'identifier')
+                  className={`flex-1 h-1 mx-1 rounded-full ${currentStep === step ||
+                      (currentStep === 'password' && step === 'identifier')
                       ? isDark ? 'bg-white' : 'bg-black'
                       : isDark ? 'bg-gray-700' : 'bg-gray-300'
-                  }`}
+                    }`}
                 />
               ))}
             </View>
@@ -322,11 +318,10 @@ const Login = () => {
           )}
 
           <TouchableOpacity
-            className={`rounded-full py-4 ${
-              isFormValid && !isLoading
+            className={`rounded-full py-4 ${isFormValid && !isLoading
                 ? (isDark ? 'bg-white' : 'bg-black')
                 : isDark ? 'bg-gray-800' : 'bg-gray-300'
-            }`}
+              }`}
             activeOpacity={0.8}
             disabled={!isFormValid || isLoading}
             onPress={handleButtonPress}
@@ -335,11 +330,10 @@ const Login = () => {
               <ActivityIndicator color={isDark ? '#000000' : '#FFFFFF'} size="small" />
             ) : (
               <Text
-                className={`text-center text-base font-bold ${
-                  isFormValid
+                className={`text-center text-base font-bold ${isFormValid
                     ? (isDark ? 'text-black' : 'text-white')
                     : isDark ? 'text-gray-400' : 'text-gray-600'
-                }`}
+                  }`}
               >
                 {buttonText}
               </Text>

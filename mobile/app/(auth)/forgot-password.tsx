@@ -56,11 +56,8 @@ const ForgotPassword = () => {
   const [token, setToken] = useState('') // token pasted from email link
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
-  // keyboard offset
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   
   useEffect(() => {
@@ -74,7 +71,6 @@ const ForgotPassword = () => {
     }
   }, [])
 
-  // Validation functions
   const isEmail = (val: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())
   const isUsername = (val: string) =>
@@ -84,7 +80,6 @@ const ForgotPassword = () => {
     const value = identifier.trim()
     if (isEmail(value)) return { email: value }
     if (isUsername(value)) return { username: value }
-    // fallback to email key if not certain
     return { email: value }
   }
 
@@ -93,7 +88,7 @@ const ForgotPassword = () => {
 
   const validPassword = (pwd: string) => pwd.length >= 8
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword
-  const validToken = token.trim().length > 0 // token may be a long JWT, don't enforce 6 digits
+  const validToken = token.trim().length > 0 
 
   // Forgot password mutation
   const forgotPasswordMutation = useMutation({
