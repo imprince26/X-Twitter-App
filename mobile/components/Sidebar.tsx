@@ -12,7 +12,7 @@ import { useColorScheme } from 'nativewind';
 import { useUser } from '@/hooks/useAuth';
 
 const { width } = Dimensions.get('window');
-const DRAWER_WIDTH = width * 0.9;
+const DRAWER_WIDTH = width * 0.75;
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -129,122 +129,7 @@ const Sidebar: React.FC<SidebarProps> = ({ children, closeDrawer, isDrawerOpen }
                  <Text className='ml-0.5 text-gray-500 dark:text-gray-500 '> Followers</Text>
               </Text>
             </View>
-          </View>
-
-
-          {/* Menu Section */}
-          <View className="mt-5">
-            <TouchableOpacity 
-              className="p-3.75 flex-row items-center"
-              onPress={handleProfilePress}
-              accessibilityLabel="Profile"
-              accessibilityRole="button"
-            >
-              <FontAwesome name="user" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
-                Profile
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              className="p-3.75 flex-row items-center"
-              onPress={handleBookmarksPress}
-              accessibilityLabel="Bookmarks"
-              accessibilityRole="button"
-            >
-              <FontAwesome name="bookmark" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
-                Bookmarks
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              className="p-3.75 flex-row items-center"
-              onPress={handleListsPress}
-              accessibilityLabel="Lists"
-              accessibilityRole="button"
-            >
-              <FontAwesome name="list-alt" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
-                Lists
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              className="p-3.75 flex-row items-center"
-              onPress={handleFollowerRequestsPress}
-              accessibilityLabel="Follower requests"
-              accessibilityRole="button"
-            >
-              <FontAwesome name="user-plus" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
-                Follower requests
-              </Text>
-            </TouchableOpacity>
-
-            {/* Additional Menu Items for X (Twitter) */}
-            <TouchableOpacity 
-              className="p-3.75 flex-row items-center"
-              accessibilityLabel="Spaces"
-              accessibilityRole="button"
-            >
-              <FontAwesome name="microphone" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
-                Spaces
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              className="p-3.75 flex-row items-center"
-              accessibilityLabel="Monetization"
-              accessibilityRole="button"
-            >
-              <FontAwesome name="dollar" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
-                Monetization
-              </Text>
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View className={`h-px mx-3.75 my-2.5 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`} />
-
-            <TouchableOpacity 
-              className="p-3.75 flex-row items-center"
-              accessibilityLabel="Settings and privacy"
-              accessibilityRole="button"
-            >
-              <FontAwesome name="cog" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
-                Settings and privacy
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              className="p-3.75 flex-row items-center"
-              accessibilityLabel="Help Center"
-              accessibilityRole="button"
-            >
-              <FontAwesome name="question-circle" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
-                Help Center
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Footer - switch theme */}
-          <View className="mt-5">
-            <TouchableOpacity 
-              className="p-3.75 flex-row items-center"
-              onPress={handleSwitchTheme}
-              accessibilityLabel="Switch theme"
-              accessibilityRole="button"
-            >
-              <Feather name="moon" size={24} color={isDark ? '#fff' : '#000'} />
-              <Text className={`${isDark ? 'text-white' : 'text-black'} ml-3.75 text-lg`}>
-                Switch Theme
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </View>    
         </Animated.View>
       </GestureDetector>
       {children}

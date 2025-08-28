@@ -1,11 +1,14 @@
-import { View, Text, TouchableOpacity, Alert } from 'react-native'
-import React from 'react'
+import { View, Text, TouchableOpacity, Alert, Image } from 'react-native'
+import React,{useState} from 'react'
 import { useColorScheme } from 'nativewind'
 import { useRouter } from 'expo-router'
+import { AntDesign } from '@expo/vector-icons'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useUser } from '@/hooks/useAuth'
+import Sidebar from '@/components/Sidebar';
+
 
 const Search = () => {
   const { colorScheme } = useColorScheme()
@@ -13,6 +16,15 @@ const Search = () => {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { data: user } = useUser()
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  
+  const openDrawer = () => {
+    setIsDrawerOpen(true);
+  };
+
+  const closeDrawer = () => {
+    setIsDrawerOpen(false);
+  };
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -50,13 +62,23 @@ const Search = () => {
   }
 
   return (
+    <Sidebar isDrawerOpen={isDrawerOpen} closeDrawer={() => setIsDrawerOpen(false)}>
     <View className={`flex-1 ${isDark ? 'bg-black' : 'bg-white'}`}>
+
       {/* Header */}
       <View className='flex-row items-center justify-between px-4 py-4 border-b border-gray-200 dark:border-gray-800'>
-        <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-          Search
-        </Text>
-        
+           <TouchableOpacity onPress={openDrawer}>
+                {user?.avatar ? (
+                  <Image
+                    source={{ uri: user.avatar }}
+                    className="w-8 h-8 rounded-full"
+                  />
+                ) : (
+                  <View className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? 'bg-gray-800' : 'bg-gray-300'}`}>
+                    <AntDesign name="user" size={20} color={isDark ? 'white' : 'black'} />
+                  </View>
+                )}
+              </TouchableOpacity>
         <TouchableOpacity
           onPress={handleLogout}
           activeOpacity={0.7}
@@ -105,7 +127,9 @@ const Search = () => {
           </Text>
         </View>
       </View>
+
     </View>
+    </Sidebar>
   )
 }
 
