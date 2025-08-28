@@ -9,37 +9,29 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import XLoader from '@/components/XLoader';
 import { queryClient } from '@/utils/queryClient';
 import './global.css';
-
-// Import the hook inside the provider context
 import { useUser } from '@/hooks/useAuth';
 
-// Authentication wrapper component - now inside QueryClientProvider
 function AuthWrapper({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading, error } = useUser();
+  const { data: user, isLoading } = useUser();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    // Add a small delay to ensure navigation is ready
     const timeoutId = setTimeout(() => {
-      if (isLoading) return; // Don't redirect while loading
+      if (isLoading) return;
 
       const inAuthGroup = segments[0] === '(auth)';
-      const inHomeGroup = segments[0] === '(home)';
 
       if (!user && !inAuthGroup) {
-        // User is not authenticated and not in auth group, redirect to login
         router.replace('/(auth)/login');
       } else if (user && inAuthGroup) {
-        // User is authenticated but in auth group, redirect to home
         router.replace('/(home)');
       }
-    }, 100); // Small delay to ensure router is ready
+    }, 100);
 
     return () => clearTimeout(timeoutId);
   }, [user, segments, isLoading, router]);
 
-  // Show loading while checking authentication
   if (isLoading) {
     return <XLoader />;
   }
@@ -47,7 +39,6 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Main app content wrapper
 function AppContent() {
   const { colorScheme } = useColorScheme();
 

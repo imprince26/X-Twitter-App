@@ -18,8 +18,6 @@ interface User {
   dateJoined?: string;
   followingCount?: number;
   followersCount?: number;
-
-  // add other user properties as needed
 }
 
 interface LoginCredentials {

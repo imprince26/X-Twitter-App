@@ -14,17 +14,13 @@ const Search = () => {
   const queryClient = useQueryClient()
   const { data: user } = useUser()
 
-  // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      // Remove token from AsyncStorage
       await AsyncStorage.removeItem('TwitterToken')
     },
     onSuccess: () => {
-      // Clear all cached data
       queryClient.clear()
       
-      // Navigate to auth screen
       router.replace('/(auth)/auth')
     },
     onError: (error) => {
@@ -61,7 +57,6 @@ const Search = () => {
           Search
         </Text>
         
-        {/* Logout Button */}
         <TouchableOpacity
           onPress={handleLogout}
           activeOpacity={0.7}
@@ -81,7 +76,6 @@ const Search = () => {
         </TouchableOpacity>
       </View>
 
-      {/* User Info (if available) */}
       {user && (
         <View className='px-4 py-3 border-b border-gray-200 dark:border-gray-800'>
           <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>

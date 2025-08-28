@@ -14,14 +14,6 @@ import { useUser } from '@/hooks/useAuth';
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.9;
 
-interface User {
-  avatar?: string;
-  name?: string;
-  username?: string;
-  followingCount?: number;
-  followersCount?: number;
-}
-
 interface SidebarProps {
   children: React.ReactNode;
   closeDrawer: () => void;
