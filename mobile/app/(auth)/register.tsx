@@ -15,7 +15,6 @@ import CustomInput from '../../components/CustomInput';
 import XLoader from '../../components/XLoader';
 import { api } from '@/utils/api';
 
-// Types
 interface BasicInfoForm {
   name: string;
   username: string;
@@ -59,7 +58,7 @@ const basicInfoSchema = yup.object().shape({
   dateOfBirth: yup
     .string()
     .required('Date of birth is required')
-    .test('age', 'You must be at least 13 years old', function(value) {
+    .test('age', 'You must be at least 13 years old', function (value) {
       if (!value) return false;
       const today = new Date();
       const birthDate = new Date(value);
@@ -88,7 +87,6 @@ const Register = () => {
   const params = useLocalSearchParams();
   const queryClient = useQueryClient();
 
-  // States
   const [currentStep, setCurrentStep] = useState<'basic' | 'password' | 'verification'>('basic');
   const [userData, setUserData] = useState<any>({});
   const [showPassword, setShowPassword] = useState(false);
@@ -100,7 +98,6 @@ const Register = () => {
 
   const bottomViewAnimated = useRef(new Animated.Value(0)).current;
 
-  // Forms
   const basicInfoForm = useForm<BasicInfoForm>({
     resolver: yupResolver(basicInfoSchema),
     mode: 'onChange',
@@ -114,18 +111,15 @@ const Register = () => {
     defaultValues: { password: '', confirmPassword: '' },
   });
 
-  // Stable form subscriptions
   const { control: basicControl, formState: { isValid: isBasicValid }, watch: watchBasic, setValue: setBasicValue } = basicInfoForm;
   const { control: passwordControl, formState: { isValid: isPasswordValid } } = passwordForm;
 
-  // Watch username for availability check
   const username = watchBasic('username');
 
-  // Username availability check query
-  const { 
-    data: usernameData, 
-    isLoading: usernameChecking, 
-    error: usernameError 
+  const {
+    data: usernameData,
+    isLoading: usernameChecking,
+    error: usernameError
   } = useQuery({
     queryKey: ['usernameAvailable', usernameToCheck],
     queryFn: async (): Promise<{ available: boolean; success: boolean }> => {
@@ -137,7 +131,6 @@ const Register = () => {
     staleTime: 30000, // 30 seconds
   });
 
-  // Register mutation
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterData) => {
       const response = await api.post('/auth/register', data);
@@ -147,7 +140,7 @@ const Register = () => {
       setUserData(data.data);
       setCurrentStep('verification');
       Alert.alert(
-        'Registration Successful', 
+        'Registration Successful',
         'Please check your email and click the verification link to complete your registration.',
         [{ text: 'OK' }]
       );
@@ -168,16 +161,16 @@ const Register = () => {
         await AsyncStorage.setItem('TwitterToken', data.token);
         queryClient.setQueryData(['user'], data.user);
       }
-      
+
       Alert.alert(
-        'Email Verified', 
+        'Email Verified',
         'Your account has been successfully verified! Welcome to Twitter.',
         [{ text: 'Continue', onPress: () => router.replace('/(home)') }]
       );
     },
     onError: (error: any) => {
       Alert.alert(
-        'Verification Failed', 
+        'Verification Failed',
         error?.response?.data?.message || 'Invalid or expired verification link.'
       );
     },
@@ -288,7 +281,7 @@ const Register = () => {
       // Extract token from URL
       const urlObj = new URL(verificationUrl);
       const token = urlObj.searchParams.get('token');
-      
+
       if (!token) {
         Alert.alert('Error', 'Invalid verification URL. Token not found.');
         return;
@@ -319,7 +312,7 @@ const Register = () => {
       Alert.alert('Error', 'Unable to verify username availability. Please try again.');
       return;
     }
-    
+
     setUserData((prev: any) => ({ ...prev, ...data }));
     setCurrentStep('password');
   }, []);
@@ -332,7 +325,7 @@ const Register = () => {
       password: data.password,
       dateOfBirth: userData.dateOfBirth,
     };
-    
+
     registerMutation.mutate(completeData);
   }, [userData]);
 
@@ -360,11 +353,11 @@ const Register = () => {
   const usernameStatus = getUsernameStatus();
 
   // Validity by step - include username availability check for basic step
-  const isFormValid = currentStep === 'basic' 
+  const isFormValid = currentStep === 'basic'
     ? isBasicValid && usernameStatus === 'available'
-    : currentStep === 'password' 
-    ? isPasswordValid 
-    : true; // Verification step doesn't need form validation
+    : currentStep === 'password'
+      ? isPasswordValid
+      : true; // Verification step doesn't need form validation
 
   const buttonText = useMemo(() => {
     if (currentStep === 'basic') return 'Next';
@@ -418,7 +411,7 @@ const Register = () => {
                       autoCapitalize="none"
                       placeholder="username"
                     />
-                    
+
                     {/* Username status indicator */}
                     {username && username.length >= 3 && (
                       <View className="flex-row items-center mt-1 ml-3">
@@ -504,7 +497,7 @@ const Register = () => {
                         <Ionicons name="calendar" size={20} color={isDark ? '#FFFFFF' : '#536471'} />
                       </View>
                     </TouchableOpacity>
-                    
+
                     {showDatePicker && (
                       <DateTimePicker
                         value={selectedDate}
@@ -591,7 +584,7 @@ const Register = () => {
             <Text className={`text-sm mb-8 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
               We sent a verification link to {userData?.email}. Click the link in your email to verify your account.
             </Text>
-            
+
             <View className="space-y-4">
               <Text className={`text-sm mb-2 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                 Or paste the verification URL here:
@@ -608,9 +601,9 @@ const Register = () => {
             </View>
 
             <View className="mt-6 space-y-3">
-              <TouchableOpacity 
-                className="mt-4" 
-                onPress={resendVerificationEmail} 
+              <TouchableOpacity
+                className="mt-4"
+                onPress={resendVerificationEmail}
                 disabled={resendVerificationMutation.isPending}
               >
                 <Text className={`text-sm ${isDark ? 'text-blue-400' : 'text-blue-500'}`}>
@@ -649,7 +642,7 @@ const Register = () => {
 
   const isLoading = registerMutation.isPending || verifyEmailMutation.isPending;
 
-  if(isLoading){
+  if (isLoading) {
     return <XLoader />
   }
 
@@ -672,13 +665,12 @@ const Register = () => {
             {['basic', 'password', 'verification'].map((step) => (
               <View
                 key={step}
-                className={`flex-1 h-1 mx-1 rounded-full ${
-                  currentStep === step ||
-                  (['password', 'verification'].includes(currentStep) && step === 'basic') ||
-                  (currentStep === 'verification' && step === 'password')
+                className={`flex-1 h-1 mx-1 rounded-full ${currentStep === step ||
+                    (['password', 'verification'].includes(currentStep) && step === 'basic') ||
+                    (currentStep === 'verification' && step === 'password')
                     ? isDark ? 'bg-white' : 'bg-black'
                     : isDark ? 'bg-gray-700' : 'bg-gray-300'
-                }`}
+                  }`}
               />
             ))}
           </View>
@@ -691,9 +683,8 @@ const Register = () => {
         {currentStep !== 'verification' && (
           <Animated.View className={`px-6 py-4 ${isDark ? 'bg-black' : 'bg-white'}`} style={{ marginBottom: bottomViewAnimated }}>
             <TouchableOpacity
-              className={`rounded-full py-4 ${
-                isFormValid && !loading ? (isDark ? 'bg-white' : 'bg-black') : isDark ? 'bg-gray-800' : 'bg-gray-300'
-              }`}
+              className={`rounded-full py-4 ${isFormValid && !loading ? (isDark ? 'bg-white' : 'bg-black') : isDark ? 'bg-gray-800' : 'bg-gray-300'
+                }`}
               activeOpacity={0.8}
               disabled={!isFormValid || loading}
               onPress={handleButtonPress}
