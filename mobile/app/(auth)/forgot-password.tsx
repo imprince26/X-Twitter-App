@@ -15,9 +15,32 @@ import AntDesign from '@expo/vector-icons/AntDesign'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useNavigation, useRouter } from 'expo-router'
 import { useColorScheme } from 'nativewind'
+import { useMutation } from '@tanstack/react-query'
 import CustomInput from '@/components/CustomInput'
 import cn from 'clsx'
 import { api } from '@/utils/api'
+
+interface ForgotPasswordPayload {
+  email?: string;
+  username?: string;
+}
+
+interface ResetPasswordPayload {
+  token: string;
+  password: string;
+}
+
+interface ForgotPasswordResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+interface ResetPasswordResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
 
 const ForgotPassword = () => {
   const { colorScheme } = useColorScheme()
@@ -27,8 +50,6 @@ const ForgotPassword = () => {
 
   // steps: 1 = request reset email, 2 = enter token + new password
   const [step, setStep] = useState<1 | 2>(1)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isResending, setIsResending] = useState(false)
 
   // form state
   const [identifier, setIdentifier] = useState('') // email or username
@@ -41,6 +62,7 @@ const ForgotPassword = () => {
 
   // keyboard offset
   const [keyboardHeight, setKeyboardHeight] = useState(0)
+  
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', (e) =>
       setKeyboardHeight(e.endCoordinates.height)
@@ -52,12 +74,13 @@ const ForgotPassword = () => {
     }
   }, [])
 
+  // Validation functions
   const isEmail = (val: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())
   const isUsername = (val: string) =>
     /^[a-zA-Z0-9_]{3,15}$/.test(val.trim())
 
-  const buildForgotPayload = () => {
+  const buildForgotPayload = (): ForgotPasswordPayload => {
     const value = identifier.trim()
     if (isEmail(value)) return { email: value }
     if (isUsername(value)) return { username: value }
@@ -70,104 +93,130 @@ const ForgotPassword = () => {
 
   const validPassword = (pwd: string) => pwd.length >= 8
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword
-  const validToken = token.trim().length > 0 // token may be a long JWT, don’t enforce 6 digits
+  const validToken = token.trim().length > 0 // token may be a long JWT, don't enforce 6 digits
 
-  const handleSendResetEmail = async () => {
-    if (!validIdentifier()) {
-      Alert.alert('Error', 'Enter a valid email or username.')
-      return
-    }
-    setIsLoading(true)
-    try {
-      const res = await api.post('/auth/forgot-password', buildForgotPayload())
-      if (res.data.success) {
-        setStep(2)
-        Alert.alert('Email sent', 'Check your email for a reset link or code.')
+  // Forgot password mutation
+  const forgotPasswordMutation = useMutation({
+    mutationFn: async (payload: ForgotPasswordPayload): Promise<ForgotPasswordResponse> => {
+      const response = await api.post('/auth/forgot-password', payload);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setStep(2);
+        Alert.alert('Email sent', data.message || 'Check your email for a reset link or code.');
       } else {
-        Alert.alert('Error', res.data.error || 'Failed to send reset email.')
+        Alert.alert('Error', data.error || 'Failed to send reset email.');
       }
-    } catch (e) {
-      console.error('Forgot password error:', e)
-      Alert.alert('Error', 'Network error. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    },
+    onError: (error: any) => {
+      console.error('Forgot password error:', error);
+      const errorMessage = error?.response?.data?.message || error?.response?.data?.error || 'Network error. Please try again.';
+      Alert.alert('Error', errorMessage);
+    },
+  });
 
-  const handleResetPassword = async () => {
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (payload: ResetPasswordPayload): Promise<ResetPasswordResponse> => {
+      const response = await api.post('/auth/reset-password', payload);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        Alert.alert('Success', data.message || 'Password reset successful.', [
+          { text: 'OK', onPress: () => router.replace('/(auth)/login') },
+        ]);
+      } else {
+        Alert.alert('Error', data.error || 'Failed to reset password.');
+      }
+    },
+    onError: (error: any) => {
+      console.error('Reset password error:', error);
+      const errorMessage = error?.response?.data?.message || error?.response?.data?.error || 'Network error. Please try again.';
+      Alert.alert('Error', errorMessage);
+    },
+  });
+
+  // Resend forgot password mutation
+  const resendForgotPasswordMutation = useMutation({
+    mutationFn: async (payload: ForgotPasswordPayload): Promise<ForgotPasswordResponse> => {
+      const response = await api.post('/auth/forgot-password', payload);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        Alert.alert('Sent', data.message || 'We resent the reset email.');
+      } else {
+        Alert.alert('Error', data.error || 'Failed to resend email.');
+      }
+    },
+    onError: (error: any) => {
+      console.error('Resend error:', error);
+      const errorMessage = error?.response?.data?.message || error?.response?.data?.error || 'Network error. Please try again.';
+      Alert.alert('Error', errorMessage);
+    },
+  });
+
+  const handleSendResetEmail = () => {
+    if (!validIdentifier()) {
+      Alert.alert('Error', 'Enter a valid email or username.');
+      return;
+    }
+    forgotPasswordMutation.mutate(buildForgotPayload());
+  };
+
+  const handleResetPassword = () => {
     if (!validToken) {
-      Alert.alert('Error', 'Paste the reset token from your email.')
-      return
+      Alert.alert('Error', 'Paste the reset token from your email.');
+      return;
     }
     if (!validPassword(newPassword)) {
-      Alert.alert('Error', 'Password must be at least 8 characters.')
-      return
+      Alert.alert('Error', 'Password must be at least 8 characters.');
+      return;
     }
     if (!passwordsMatch) {
-      Alert.alert('Error', 'Passwords do not match.')
-      return
+      Alert.alert('Error', 'Passwords do not match.');
+      return;
     }
-    setIsLoading(true)
-    try {
-      const res = await api.post('/auth/reset-password', {
-        token: token.trim(),
-        password: newPassword.trim(),
-      })
-      if (res.data.success) {
-        Alert.alert('Success', 'Password reset successful.', [
-          { text: 'OK', onPress: () => router.replace('/(auth)/login') },
-        ])
-      } else {
-        Alert.alert('Error', res.data.error || 'Failed to reset password.')
-      }
-    } catch (e) {
-      console.error('Reset password error:', e)
-      Alert.alert('Error', 'Network error. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    
+    resetPasswordMutation.mutate({
+      token: token.trim(),
+      password: newPassword.trim(),
+    });
+  };
 
-  const handleResend = async () => {
+  const handleResend = () => {
     if (!validIdentifier()) {
-      Alert.alert('Error', 'Identifier missing. Go back and enter your email/username.')
-      return
+      Alert.alert('Error', 'Identifier missing. Go back and enter your email/username.');
+      return;
     }
-    setIsResending(true)
-    try {
-      const res = await api.post('/auth/forgot-password', buildForgotPayload())
-      if (res.data.success) {
-        Alert.alert('Sent', 'We resent the reset email.')
-      } else {
-        Alert.alert('Error', res.data.error || 'Failed to resend email.')
-      }
-    } catch (e) {
-      console.error('Resend error:', e)
-      Alert.alert('Error', 'Network error. Please try again.')
-    } finally {
-      setIsResending(false)
-    }
-  }
+    resendForgotPasswordMutation.mutate(buildForgotPayload());
+  };
 
   const onPrimaryPress = () => {
-    if (step === 1) return handleSendResetEmail()
-    return handleResetPassword()
-  }
+    if (step === 1) return handleSendResetEmail();
+    return handleResetPassword();
+  };
+
+  // Loading states from mutations
+  const isLoading = forgotPasswordMutation.isPending || resetPasswordMutation.isPending;
+  const isResending = resendForgotPasswordMutation.isPending;
 
   const primaryDisabled =
     (step === 1 && (!validIdentifier() || isLoading)) ||
-    (step === 2 && (!validToken || !validPassword(newPassword) || !passwordsMatch || isLoading))
+    (step === 2 && (!validToken || !validPassword(newPassword) || !passwordsMatch || isLoading));
 
-  const headerTitle = step === 1 ? 'Find your X account' : 'Reset your password'
+  const headerTitle = step === 1 ? 'Find your X account' : 'Reset your password';
   const headerDesc =
     step === 1
       ? 'Enter your email or username to receive a reset link.'
-      : 'Paste the reset token from your email and set a new password.'
+      : 'Paste the reset token from your email and set a new password.';
 
   const handleBack = () => {
-    if (step === 2) setStep(1)
-    else navigation.goBack()
-  }
+    if (step === 2) setStep(1);
+    else navigation.goBack();
+  };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>

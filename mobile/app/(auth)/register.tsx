@@ -9,10 +9,11 @@ import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { router, useLocalSearchParams } from 'expo-router';
-import CustomInput from '../../components/CustomInput';
-import { api } from '@/utils/api';
-import { useAuth } from '@/context/authContext';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CustomInput from '../../components/CustomInput';
+import XLoader from '../../components/XLoader';
+import { api } from '@/utils/api';
 
 // Types
 interface BasicInfoForm {
@@ -25,6 +26,14 @@ interface BasicInfoForm {
 interface PasswordForm {
   password: string;
   confirmPassword: string;
+}
+
+interface RegisterData {
+  username: string;
+  email: string;
+  name: string;
+  password: string;
+  dateOfBirth: string;
 }
 
 // Validation schemas
@@ -77,20 +86,16 @@ const Register = () => {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const params = useLocalSearchParams();
-  const { checkAuthStatus } = useAuth();
+  const queryClient = useQueryClient();
 
   // States
   const [currentStep, setCurrentStep] = useState<'basic' | 'password' | 'verification'>('basic');
-  const [loading, setLoading] = useState(false);
   const [userData, setUserData] = useState<any>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [usernameChecking, setUsernameChecking] = useState(false);
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
-  const [usernameError, setUsernameError] = useState<string>('');
+  const [usernameToCheck, setUsernameToCheck] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [verifying, setVerifying] = useState(false);
   const [verificationUrl, setVerificationUrl] = useState('');
 
   const bottomViewAnimated = useRef(new Animated.Value(0)).current;
@@ -116,10 +121,86 @@ const Register = () => {
   // Watch username for availability check
   const username = watchBasic('username');
 
+  // Username availability check query
+  const { 
+    data: usernameData, 
+    isLoading: usernameChecking, 
+    error: usernameError 
+  } = useQuery({
+    queryKey: ['usernameAvailable', usernameToCheck],
+    queryFn: async (): Promise<{ available: boolean; success: boolean }> => {
+      const response = await api.get(`/auth/check-username/${usernameToCheck.toLowerCase()}`);
+      return response.data;
+    },
+    enabled: !!usernameToCheck && usernameToCheck.length >= 3,
+    retry: false,
+    staleTime: 30000, // 30 seconds
+  });
+
+  // Register mutation
+  const registerMutation = useMutation({
+    mutationFn: async (data: RegisterData) => {
+      const response = await api.post('/auth/register', data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setUserData(data.data);
+      setCurrentStep('verification');
+      Alert.alert(
+        'Registration Successful', 
+        'Please check your email and click the verification link to complete your registration.',
+        [{ text: 'OK' }]
+      );
+    },
+    onError: (error: any) => {
+      Alert.alert('Registration Failed', error?.response?.data?.message || 'Something went wrong. Please try again.');
+    },
+  });
+
+  // Email verification mutation
+  const verifyEmailMutation = useMutation({
+    mutationFn: async (token: string) => {
+      const response = await api.post('/auth/verify-email', { token });
+      return response.data;
+    },
+    onSuccess: async (data) => {
+      if (data.token && data.user) {
+        await AsyncStorage.setItem('TwitterToken', data.token);
+        queryClient.setQueryData(['user'], data.user);
+      }
+      
+      Alert.alert(
+        'Email Verified', 
+        'Your account has been successfully verified! Welcome to Twitter.',
+        [{ text: 'Continue', onPress: () => router.replace('/(home)') }]
+      );
+    },
+    onError: (error: any) => {
+      Alert.alert(
+        'Verification Failed', 
+        error?.response?.data?.message || 'Invalid or expired verification link.'
+      );
+    },
+  });
+
+  // Resend verification email mutation
+  const resendVerificationMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await api.post('/auth/resend-verification', { email });
+      return response.data;
+    },
+    onSuccess: () => {
+      Alert.alert('Email Sent', 'A new verification email has been sent to your email address.');
+    },
+    onError: (error: any) => {
+      Alert.alert('Failed to Resend', error?.response?.data?.message || 'Failed to send verification email. Please try again.');
+    },
+  });
+
   // Check for verification token in URL params
   useEffect(() => {
     if (params.token) {
-      handleTokenVerification(params.token as string);
+      verifyEmailMutation.mutate(params.token as string);
     }
   }, [params.token]);
 
@@ -129,7 +210,7 @@ const Register = () => {
       const urlObj = new URL(url);
       const token = urlObj.searchParams.get('token');
       if (token) {
-        handleTokenVerification(token);
+        verifyEmailMutation.mutate(token);
       }
     };
 
@@ -162,54 +243,18 @@ const Register = () => {
     };
   }, []);
 
-  // Username availability check
-  const checkUsernameAvailability = useCallback(async (usernameToCheck: string) => {
-    if (!usernameToCheck || usernameToCheck.length < 3) {
-      setUsernameAvailable(null);
-      setUsernameError('');
-      return;
-    }
-
-    // Validate format first
-    if (!/^[a-zA-Z0-9_]+$/.test(usernameToCheck)) {
-      setUsernameAvailable(false);
-      setUsernameError('Username can only contain letters, numbers, and underscores');
-      return;
-    }
-
-    try {
-      setUsernameChecking(true);
-      setUsernameError('');
-      const response = await api.get(`/auth/check-username/${usernameToCheck.toLowerCase()}`);
-      
-      if (response.data.success) {
-        setUsernameAvailable(response.data.available);
-        if (!response.data.available) {
-          setUsernameError('Username already taken');
-        }
-      }
-    } catch (error: any) {
-      console.error('Username check error:', error);
-      setUsernameAvailable(false);
-      setUsernameError('Error checking username availability');
-    } finally {
-      setUsernameChecking(false);
-    }
-  }, []);
-
   // Debounced username check
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (username && username.length >= 3) {
-        checkUsernameAvailability(username);
+      if (username && username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)) {
+        setUsernameToCheck(username.toLowerCase());
       } else {
-        setUsernameAvailable(null);
-        setUsernameError('');
+        setUsernameToCheck('');
       }
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [username, checkUsernameAvailability]);
+  }, [username]);
 
   const dismissKeyboard = useCallback(() => Keyboard.dismiss(), []);
 
@@ -227,75 +272,10 @@ const Register = () => {
     setShowDatePicker(true);
   };
 
-  // API calls
-  const registerUser = useCallback(async (data: BasicInfoForm & PasswordForm) => {
-    try {
-      setLoading(true);
-      
-      // Final username availability check
-      const usernameCheck = await api.get(`/auth/check-username/${data.username.toLowerCase()}`);
-
-      if (!usernameCheck.data.available) {
-        Alert.alert('Registration Failed', 'Username is no longer available. Please choose another.');
-        return;
-      }
-
-      // Register user
-      const response = await api.post('/auth/register', {
-        username: data.username.toLowerCase(),
-        email: data.email,
-        name: data.name,
-        password: data.password,
-        dateOfBirth: data.dateOfBirth,
-      });
-
-      if (response.data.success) {
-        setUserData(response.data.data);
-        setCurrentStep('verification');
-        Alert.alert(
-          'Registration Successful', 
-          'Please check your email and click the verification link to complete your registration.',
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error: any) {
-      Alert.alert('Registration Failed', error?.response?.data?.message || 'Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   // Handle token verification from email link
   const handleTokenVerification = useCallback(async (token: string) => {
-    try {
-      setVerifying(true);
-      const response = await api.post('/auth/verify-email', { token });
-      
-      if (response.data.success) {
-        // Store token and user data if login is automatic after verification
-        if (response.data.token && response.data.user) {
-          await Promise.all([
-            AsyncStorage.setItem('TwitterToken', response.data.token),
-            AsyncStorage.setItem('TwitterUser', JSON.stringify(response.data.user)),
-          ]);
-          await checkAuthStatus(); // This will update the auth context
-        }
-        
-        Alert.alert(
-          'Email Verified', 
-          'Your account has been successfully verified! Welcome to Twitter.',
-          [{ text: 'Continue', onPress: () => router.replace('/(home)') }]
-        );
-      }
-    } catch (error: any) {
-      Alert.alert(
-        'Verification Failed', 
-        error?.response?.data?.message || 'Invalid or expired verification link.'
-      );
-    } finally {
-      setVerifying(false);
-    }
-  }, [checkAuthStatus]);
+    verifyEmailMutation.mutate(token);
+  }, []);
 
   // Handle URL verification from input
   const handleUrlVerification = useCallback(async () => {
@@ -314,45 +294,47 @@ const Register = () => {
         return;
       }
 
-      await handleTokenVerification(token);
+      verifyEmailMutation.mutate(token);
     } catch (error) {
       Alert.alert('Error', 'Invalid URL format. Please check the URL and try again.');
     }
-  }, [verificationUrl, handleTokenVerification]);
+  }, [verificationUrl]);
 
   const resendVerificationEmail = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await api.post('/auth/resend-verification', {
-        email: userData?.email
-      });
-      
-      if (response.data.success) {
-        Alert.alert('Email Sent', 'A new verification email has been sent to your email address.');
-      }
-    } catch (error: any) {
-      Alert.alert('Failed to Resend', error?.response?.data?.message || 'Failed to send verification email. Please try again.');
-    } finally {
-      setLoading(false);
+    if (userData?.email) {
+      resendVerificationMutation.mutate(userData.email);
     }
   }, [userData?.email]);
 
   // Handlers
-  const handleBasicInfoSubmit = useCallback((data: BasicInfoForm) => {
-    // Check username availability before proceeding
-    if (usernameAvailable === false) {
-      Alert.alert('Invalid Username', 'Please choose an available username.');
+  const handleBasicInfoSubmit = useCallback(async (data: BasicInfoForm) => {
+    // Final username availability check
+    try {
+      const response = await api.get(`/auth/check-username/${data.username.toLowerCase()}`);
+      if (!response.data.available) {
+        Alert.alert('Registration Failed', 'Username is no longer available. Please choose another.');
+        return;
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Unable to verify username availability. Please try again.');
       return;
     }
     
     setUserData((prev: any) => ({ ...prev, ...data }));
     setCurrentStep('password');
-  }, [usernameAvailable]);
+  }, []);
 
   const handlePasswordSubmit = useCallback((data: PasswordForm) => {
-    const completeData = { ...userData, ...data };
-    registerUser(completeData as any);
-  }, [userData, registerUser]);
+    const completeData: RegisterData = {
+      username: userData.username.toLowerCase(),
+      email: userData.email,
+      name: userData.name,
+      password: data.password,
+      dateOfBirth: userData.dateOfBirth,
+    };
+    
+    registerMutation.mutate(completeData);
+  }, [userData]);
 
   const goBack = useCallback(() => {
     if (currentStep === 'password') return setCurrentStep('basic');
@@ -364,9 +346,22 @@ const Register = () => {
   const toggleShowPassword = useCallback(() => setShowPassword(p => !p), []);
   const toggleShowConfirmPassword = useCallback(() => setShowConfirmPassword(p => !p), []);
 
+  // Get username status
+  const getUsernameStatus = () => {
+    if (!username || username.length < 3) return null;
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) return 'invalid';
+    if (usernameChecking) return 'checking';
+    if (usernameError) return 'error';
+    if (usernameData?.available === true) return 'available';
+    if (usernameData?.available === false) return 'taken';
+    return null;
+  };
+
+  const usernameStatus = getUsernameStatus();
+
   // Validity by step - include username availability check for basic step
   const isFormValid = currentStep === 'basic' 
-    ? isBasicValid && usernameAvailable === true 
+    ? isBasicValid && usernameStatus === 'available'
     : currentStep === 'password' 
     ? isPasswordValid 
     : true; // Verification step doesn't need form validation
@@ -378,17 +373,9 @@ const Register = () => {
     return 'Next';
   }, [currentStep]);
 
-  // Get username status indicator
-  const getUsernameStatus = () => {
-    if (!username || username.length < 3) return null;
-    if (usernameChecking) return 'checking';
-    if (usernameError) return 'error';
-    if (usernameAvailable === true) return 'available';
-    if (usernameAvailable === false) return 'taken';
-    return null;
-  };
-
-  const usernameStatus = getUsernameStatus();
+  if (registerMutation.isPending && currentStep === 'password') {
+    return <XLoader />;
+  }
 
   // Render step content
   const renderStepContent = () => {
@@ -424,13 +411,10 @@ const Register = () => {
                       labelText="Username"
                       value={value ?? ''}
                       setValue={(text) => {
-                        // Reset username status when user types
-                        setUsernameAvailable(null);
-                        setUsernameError('');
                         onChange(text.toLowerCase());
                       }}
                       onBlur={onBlur}
-                      error={error?.message || usernameError}
+                      error={error?.message}
                       autoCapitalize="none"
                       placeholder="username"
                     />
@@ -462,11 +446,19 @@ const Register = () => {
                             </Text>
                           </>
                         )}
-                        {usernameStatus === 'error' && usernameError && (
+                        {usernameStatus === 'invalid' && (
                           <>
                             <Ionicons name="close-circle" size={16} color="#EF4444" />
                             <Text className="ml-2 text-sm text-red-500">
-                              {usernameError}
+                              Username can only contain letters, numbers, and underscores
+                            </Text>
+                          </>
+                        )}
+                        {usernameStatus === 'error' && (
+                          <>
+                            <Ionicons name="close-circle" size={16} color="#EF4444" />
+                            <Text className="ml-2 text-sm text-red-500">
+                              Error checking username availability
                             </Text>
                           </>
                         )}
@@ -619,10 +611,10 @@ const Register = () => {
               <TouchableOpacity 
                 className="mt-4" 
                 onPress={resendVerificationEmail} 
-                disabled={loading}
+                disabled={resendVerificationMutation.isPending}
               >
                 <Text className={`text-sm ${isDark ? 'text-blue-400' : 'text-blue-500'}`}>
-                  Didn't receive email? Resend verification email
+                  {resendVerificationMutation.isPending ? 'Sending...' : "Didn't receive email? Resend verification email"}
                 </Text>
               </TouchableOpacity>
 
@@ -633,7 +625,7 @@ const Register = () => {
               </TouchableOpacity>
             </View>
 
-            {verifying && (
+            {verifyEmailMutation.isPending && (
               <View className="mt-4 flex-row items-center justify-center">
                 <ActivityIndicator size="small" color={isDark ? '#FFFFFF' : '#000000'} />
                 <Text className={`ml-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
@@ -649,11 +641,18 @@ const Register = () => {
     }
   };
 
-  const handleButtonPress = useCallback(() => {
+  const handleButtonPress = () => {
     if (currentStep === 'basic') return basicInfoForm.handleSubmit(handleBasicInfoSubmit)();
     if (currentStep === 'password') return passwordForm.handleSubmit(handlePasswordSubmit)();
     if (currentStep === 'verification') return handleUrlVerification();
-  }, [currentStep, basicInfoForm, passwordForm, handleBasicInfoSubmit, handlePasswordSubmit, handleUrlVerification]);
+  };
+
+  const isLoading = registerMutation.isPending || verifyEmailMutation.isPending;
+
+  if(isLoading){
+    return <XLoader />
+  }
+
 
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>

@@ -8,31 +8,38 @@ import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useRouter } from 'expo-router';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import CustomInput from '@/components/CustomInput';
-import { useAuth } from '@/context/authContext';
+import { api } from '@/utils/api';
 
-// Validation schema
-const loginSchema = yup.object().shape({
-  identifier: yup
-    .string()
-    .required('Email or username is required')
-    .min(3, 'Please enter a valid email or username'),
-  password: yup
-    .string()
-    .required('Password is required')
-    .min(1, 'Password is required'),
-});
-
-interface LoginForm {
+interface LoginCredentials {
   identifier: string;
   password: string;
+}
+
+interface LoginResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    user: any;
+    token: string;
+    tokenType: string;
+    expiresIn: string;
+  };
+}
+
+interface CheckIdentifierResponse {
+  success: boolean;
+  exists?: boolean;
+  message?: string;
 }
 
 const Login = () => {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { login, isLoading } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   
   const [showPassword, setShowPassword] = useState(false);
   const [currentStep, setCurrentStep] = useState<'identifier' | 'password'>('identifier');
@@ -63,6 +70,61 @@ const Login = () => {
 
   const identifier = watchIdentifier('identifier');
 
+  // Login mutation
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: LoginCredentials): Promise<LoginResponse> => {
+      const response = await api.post('/auth/login', credentials);
+      return response.data;
+    },
+    onSuccess: async (data) => {
+      if (data.success && data.data?.token && data.data?.user) {
+        // Store token
+        await AsyncStorage.setItem('TwitterToken', data.data.token);
+        
+        // Update user data in cache
+        queryClient.setQueryData(['user'], data.data.user);
+        
+        // Navigate to home
+        router.replace('/(home)');
+      } else {
+        Alert.alert('Login Failed', data.message || 'Invalid credentials');
+      }
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || 'Login failed. Please try again.';
+      Alert.alert('Login Failed', errorMessage);
+      console.error('Login error:', error);
+    },
+  });
+
+  // Check identifier mutation (optional - to validate identifier before password step)
+  const checkIdentifierMutation = useMutation({
+    mutationFn: async (identifier: string): Promise<CheckIdentifierResponse> => {
+      // Check if it's an email or username
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+      const endpoint = isEmail ? `/auth/check-email/${encodeURIComponent(identifier)}` : `/auth/check-username/${encodeURIComponent(identifier)}`;
+      
+      const response = await api.get(endpoint);
+      return {
+        success: response.data.success,
+        exists: !response.data.available, // available=false means exists=true
+        message: response.data.message,
+      };
+    },
+    onSuccess: (data) => {
+      if (data.exists) {
+        setCurrentStep('password');
+      } else {
+        Alert.alert('Account Not Found', 'No account found with this email or username.');
+      }
+    },
+    onError: (error: any) => {
+      // If check fails, proceed to password step anyway (fallback)
+      console.warn('Identifier check failed, proceeding to password step:', error);
+      setCurrentStep('password');
+    },
+  });
+
   // Keyboard handling
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', (event) => {
@@ -91,22 +153,19 @@ const Login = () => {
 
   const handleIdentifierSubmit = useCallback((data: { identifier: string }) => {
     setUserIdentifier(data.identifier);
-    setCurrentStep('password');
-  }, []);
+    
+    // Check if identifier exists (optional step)
+    checkIdentifierMutation.mutate(data.identifier);
+  }, [checkIdentifierMutation]);
 
   const handlePasswordSubmit = useCallback(async (data: { password: string }) => {
-    try {
-      const result = await login(userIdentifier, data.password);
-      
-      if (result.success) {
-        router.replace('/(home)');
-      } else {
-        Alert.alert('Login Failed', result.message || 'Invalid credentials');
-      }
-    } catch (error) {
-      Alert.alert('Login Failed', 'An unexpected error occurred');
-    }
-  }, [userIdentifier, login]);
+    const credentials: LoginCredentials = {
+      identifier: userIdentifier,
+      password: data.password,
+    };
+    
+    loginMutation.mutate(credentials);
+  }, [userIdentifier, loginMutation]);
 
   const goBack = useCallback(() => {
     if (currentStep === 'password') {
@@ -115,7 +174,7 @@ const Login = () => {
     } else {
       router.back();
     }
-  }, [currentStep, passwordForm]);
+  }, [currentStep, passwordForm, router]);
 
   const handleButtonPress = useCallback(() => {
     if (currentStep === 'identifier') {
@@ -126,6 +185,7 @@ const Login = () => {
   }, [currentStep, identifierForm, passwordForm, handleIdentifierSubmit, handlePasswordSubmit]);
 
   const isFormValid = currentStep === 'identifier' ? isIdentifierValid : isPasswordValid;
+  const isLoading = loginMutation.isPending || checkIdentifierMutation.isPending;
   const buttonText = currentStep === 'identifier' ? 'Next' : 'Log in';
 
   const renderStepContent = () => {
@@ -181,14 +241,14 @@ const Login = () => {
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                 />
-                <TouchableOpacity 
-                  className="absolute right-4 top-4" 
+                <TouchableOpacity
+                  className="absolute right-4 top-4"
                   onPress={toggleShowPassword}
                 >
-                  <Ionicons 
-                    name={showPassword ? 'eye-off' : 'eye'} 
-                    size={20} 
-                    color={isDark ? '#FFFFFF' : '#536471'} 
+                  <Ionicons
+                    name={showPassword ? 'eye-off' : 'eye'}
+                    size={20}
+                    color={isDark ? '#FFFFFF' : '#536471'}
                   />
                 </TouchableOpacity>
               </View>
@@ -196,7 +256,7 @@ const Login = () => {
           />
         </View>
 
-        <TouchableOpacity onPress={() => router.push('/forgot-password')} className="mb-4">
+        <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')} className="mb-4">
           <Text className={`text-sm ${isDark ? 'text-blue-400' : 'text-blue-500'}`}>
             Forgot password?
           </Text>
@@ -216,10 +276,10 @@ const Login = () => {
             {/* Header */}
             <View className="flex flex-row items-center justify-between mt-4 mb-8">
               <TouchableOpacity onPress={goBack}>
-                <AntDesign 
-                  name={currentStep === 'identifier' ? 'close' : 'arrowleft'} 
-                  size={24} 
-                  color={isDark ? '#FFFFFF' : '#0F1419'} 
+                <AntDesign
+                  name={currentStep === 'identifier' ? 'close' : 'arrowleft'}
+                  size={24}
+                  color={isDark ? '#FFFFFF' : '#0F1419'}
                 />
               </TouchableOpacity>
               <FontAwesome6 name="x-twitter" size={24} color={isDark ? '#FFFFFF' : '#0F1419'} />
@@ -232,7 +292,7 @@ const Login = () => {
                 <View
                   key={step}
                   className={`flex-1 h-1 mx-1 rounded-full ${
-                    currentStep === step || 
+                    currentStep === step ||
                     (currentStep === 'password' && step === 'identifier')
                       ? isDark ? 'bg-white' : 'bg-black'
                       : isDark ? 'bg-gray-700' : 'bg-gray-300'
@@ -249,22 +309,22 @@ const Login = () => {
         </KeyboardAvoidingView>
 
         {/* Bottom Button */}
-        <Animated.View 
-          className={`px-6 py-4 ${isDark ? 'bg-black' : 'bg-white'}`} 
+        <Animated.View
+          className={`px-6 py-4 ${isDark ? 'bg-black' : 'bg-white'}`}
           style={{ marginBottom: bottomViewAnimated }}
         >
           {currentStep === 'identifier' && (
-            <TouchableOpacity onPress={() => router.push('/forgot-password')}>
+            <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
               <Text className={`text-sm mb-4 ${isDark ? 'text-blue-400' : 'text-blue-500'}`}>
                 Forgot password?
               </Text>
             </TouchableOpacity>
           )}
-          
+
           <TouchableOpacity
             className={`rounded-full py-4 ${
-              isFormValid && !isLoading 
-                ? (isDark ? 'bg-white' : 'bg-black') 
+              isFormValid && !isLoading
+                ? (isDark ? 'bg-white' : 'bg-black')
                 : isDark ? 'bg-gray-800' : 'bg-gray-300'
             }`}
             activeOpacity={0.8}
@@ -274,10 +334,10 @@ const Login = () => {
             {isLoading ? (
               <ActivityIndicator color={isDark ? '#000000' : '#FFFFFF'} size="small" />
             ) : (
-              <Text 
+              <Text
                 className={`text-center text-base font-bold ${
-                  isFormValid 
-                    ? (isDark ? 'text-black' : 'text-white') 
+                  isFormValid
+                    ? (isDark ? 'text-black' : 'text-white')
                     : isDark ? 'text-gray-400' : 'text-gray-600'
                 }`}
               >

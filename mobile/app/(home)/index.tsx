@@ -3,11 +3,12 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useState } from 'react';
+import React, { use, useState } from 'react';
 import { useColorScheme } from 'nativewind';
-import { useAuth } from '@/context/authContext';
+// import { useAuth } from '@/context/authContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Sidebar from '@/components/Sidebar';
+import { useUser } from '@/hooks/useAuth';
 
 const dummyPosts = [
   {
@@ -174,9 +175,8 @@ const formatNumber = (num: number) => {
 const Home = () => {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { user } = useAuth();
+  const {data:user} = useUser();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
   const openDrawer = () => {
     setIsDrawerOpen(true);
   };

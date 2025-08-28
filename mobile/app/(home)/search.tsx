@@ -1,15 +1,37 @@
 import { View, Text, TouchableOpacity, Alert } from 'react-native'
 import React from 'react'
 import { useColorScheme } from 'nativewind'
-import { useAuth } from '@/context/authContext'
 import { useRouter } from 'expo-router'
 import Ionicons from '@expo/vector-icons/Ionicons'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useUser } from '@/hooks/useAuth'
 
 const Search = () => {
   const { colorScheme } = useColorScheme()
   const isDark = colorScheme === 'dark'
-  const { logout } = useAuth()
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const { data: user } = useUser()
+
+  // Logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      // Remove token from AsyncStorage
+      await AsyncStorage.removeItem('TwitterToken')
+    },
+    onSuccess: () => {
+      // Clear all cached data
+      queryClient.clear()
+      
+      // Navigate to auth screen
+      router.replace('/(auth)/auth')
+    },
+    onError: (error) => {
+      console.error('Logout error:', error)
+      Alert.alert('Error', 'Failed to logout. Please try again.')
+    },
+  })
 
   const handleLogout = () => {
     Alert.alert(
@@ -23,14 +45,8 @@ const Search = () => {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout()
-              router.replace('/(auth)/auth')
-            } catch (error) {
-              console.error('Logout error:', error)
-              Alert.alert('Error', 'Failed to logout. Please try again.')
-            }
+          onPress: () => {
+            logoutMutation.mutate()
           },
         },
       ]
@@ -49,12 +65,30 @@ const Search = () => {
         <TouchableOpacity
           onPress={handleLogout}
           activeOpacity={0.7}
-          className='flex-row items-center px-3 py-2 rounded-full bg-red-500'
+          disabled={logoutMutation.isPending}
+          className={`flex-row items-center px-3 py-2 rounded-full ${
+            logoutMutation.isPending ? 'bg-red-400' : 'bg-red-500'
+          }`}
         >
-          <Ionicons name="log-out-outline" size={18} color="white" />
-          <Text className='text-white font-medium ml-2'>Logout</Text>
+          <Ionicons 
+            name="log-out-outline" 
+            size={18} 
+            color="white" 
+          />
+          <Text className='text-white font-medium ml-2'>
+            {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+          </Text>
         </TouchableOpacity>
       </View>
+
+      {/* User Info (if available) */}
+      {user && (
+        <View className='px-4 py-3 border-b border-gray-200 dark:border-gray-800'>
+          <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Logged in as: {user.username || user.email}
+          </Text>
+        </View>
+      )}
 
       {/* Content */}
       <View className='flex-1 items-center justify-center'>

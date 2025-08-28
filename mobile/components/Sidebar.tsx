@@ -7,9 +7,9 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useAuth } from '@/context/authContext';
 import { FontAwesome, Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
+import { useUser } from '@/hooks/useAuth';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.9;
@@ -29,7 +29,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ children, closeDrawer, isDrawerOpen }) => {
-  const { user }: { user: User | null } = useAuth();
+  const { data: user } = useUser();
   const { colorScheme, toggleColorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
   const translateX = useSharedValue(-DRAWER_WIDTH);
@@ -39,6 +39,8 @@ const Sidebar: React.FC<SidebarProps> = ({ children, closeDrawer, isDrawerOpen }
       transform: [{ translateX: translateX.value }],
     };
   });
+  console.log("Sidebar",user)
+  console.log()
 
   React.useEffect(() => {
     if (isDrawerOpen) {
