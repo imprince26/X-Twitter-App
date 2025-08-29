@@ -15,24 +15,38 @@ const Notifications = () => {
   return (
     <Sidebar isDrawerOpen={isDrawerOpen} closeDrawer={() => setIsDrawerOpen(false)}>
       <View className='flex-1 bg-white dark:bg-black'>
+        {/* Header */}
         <View className='flex-row items-center justify-between px-4 py-4 border-b border-gray-200 dark:border-gray-800'>
-          <TouchableOpacity onPress={() => setIsDrawerOpen(true)}>
-            {user?.profilePicture ? (
-              <Image
-                source={{ uri: user.profilePicture }}
-                className="w-8 h-8 rounded-full"
-              />
-            ) : (
-              <View className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? 'bg-gray-800' : 'bg-gray-300'}`}>
-                <AntDesign name="user" size={20} color={isDark ? 'white' : 'black'} />
-              </View>
-            )}
-          </TouchableOpacity>
+          <View className='flex-row'>
+
+            <TouchableOpacity onPress={() => setIsDrawerOpen(true)}>
+              {user?.profilePicture ? (
+                <Image
+                  source={{ uri: user.profilePicture }}
+                  className="w-8 h-8 rounded-full"
+                />
+              ) : (
+                <View className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? 'bg-gray-800' : 'bg-gray-300'}`}>
+                  <AntDesign name="user" size={20} color={isDark ? 'white' : 'black'} />
+                </View>
+              )}
+            </TouchableOpacity>
+            <Text className='text-2xl ml-10 font-medium text-black dark:text-gray-200' >Notifications</Text>
+          </View>
           <TouchableOpacity>
             <Feather name="settings" size={24} color={isDark ? 'white' : 'black'} />
           </TouchableOpacity>
         </View>
-        <Text className='text-2xl text-white dark:text-white'>Notifications</Text>
+
+        {/* Main Content */}
+        <View className={`flex-1 items-center justify-center ${isDark ? 'bg-black' : 'bg-white'}`}>
+          <View className="items-center space-y-4">
+            <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+              Notifications
+            </Text>
+          </View>
+        </View>
+
       </View>
     </Sidebar>
   )

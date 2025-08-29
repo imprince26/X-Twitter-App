@@ -15,6 +15,7 @@ const Messages = () => {
   return (
     <Sidebar isDrawerOpen={isDrawerOpen} closeDrawer={() => setIsDrawerOpen(false)}>
       <View className='flex-1 bg-white dark:bg-black'>
+        {/* Header */}
         <View className='flex-row items-center justify-between px-4 py-4 border-b border-gray-200 dark:border-gray-800'>
           <TouchableOpacity onPress={() => setIsDrawerOpen(true)}>
             {user?.profilePicture ? (
@@ -32,7 +33,15 @@ const Messages = () => {
             <Feather name="settings" size={24} color={isDark ? 'white' : 'black'} />
           </TouchableOpacity>
         </View>
-        <Text className='text-2xl text-white dark:text-white'>Messages</Text>
+
+        {/* Main Content */}
+        <View className={`flex-1 items-center justify-center ${isDark ? 'bg-black' : 'bg-white'}`}>
+          <View className="items-center space-y-4">
+            <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+              Messages
+            </Text>
+          </View>
+        </View>
       </View>
     </Sidebar>
   )
