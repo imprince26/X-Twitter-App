@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Image } from 'react-native'
+import { View, Text, TouchableOpacity, Image,TextInput } from 'react-native'
 import React, { useState } from 'react'
 import { useColorScheme } from 'nativewind'
 import { AntDesign } from '@expo/vector-icons'
@@ -29,6 +29,16 @@ const Messages = () => {
               </View>
             )}
           </TouchableOpacity>
+          <View className='w-1/3'>
+
+          {/* <TextInput 
+          className='text-black rounded-full text-center dark:text-gray-400 w-full py-2 border border-gray-600'
+          placeholder='Search Direct Messages'
+          placeholderTextColor={isDark ? '#fff': '#111'}
+          /> */}
+             
+          </View>
+         
           <TouchableOpacity>
             <Feather name="settings" size={24} color={isDark ? 'white' : 'black'} />
           </TouchableOpacity>
