@@ -113,7 +113,7 @@ export const useUser = () => {
         const response = await api.get('/auth/me');
         
         if (response.data.success ) {
-          return response.data.data;
+          return response.data.user;
         }
         
         return null;

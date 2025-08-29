@@ -336,7 +336,7 @@ export const getMe = async (
 
     res.json({
       success: true,
-      data: { user: user },
+      user,
     });
   } catch (error) {
     console.error("Get current user error:", error);
