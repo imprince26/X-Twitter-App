@@ -77,60 +77,72 @@ export const uploadSingleMedia = uploadMedia.single('media');
 export const uploadMultipleMedia = uploadMedia.array('media', 4);
 
 // Profile picture upload
-export const uploadProfilePicture = multer({
-  storage: new CloudinaryStorage({
-    cloudinary,
-    params: {
-      folder: 'x-clone/profile-pictures',
-      resource_type: 'image',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-      transformation: [
-        { width: 400, height: 400, crop: 'fill', gravity: 'face' },
-        { quality: 'auto:good' },
-        { fetch_format: 'auto' }
-      ],
-    } as any,
-  }),
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed for profile pictures.'));
-    }
-  },
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit for profile pictures
-  },
-}).single('profilePicture');
+// export const uploadProfilePicture = multer({
+//   storage: new CloudinaryStorage({
+//     cloudinary,
+//     params: {
+//       folder: 'x-clone/profile-pictures',
+//       resource_type: 'image',
+//       allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+//       transformation: [
+//         { width: 400, height: 400, crop: 'fill', gravity: 'face' },
+//         { quality: 'auto:good' },
+//         { fetch_format: 'auto' }
+//       ],
+//     } as any,
+//   }),
+//   fileFilter: (req, file, cb) => {
+//     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+//     if (allowedTypes.includes(file.mimetype)) {
+//       cb(null, true);
+//     } else {
+//       cb(new Error('Only image files are allowed for profile pictures.'));
+//     }
+//   },
+//   limits: {
+//     fileSize: 5 * 1024 * 1024, // 5MB limit for profile pictures
+//   },
+// }).single('profilePicture');
 
-// Cover image upload
-export const uploadCoverImage = multer({
-  storage: new CloudinaryStorage({
-    cloudinary,
-    params: {
-      folder: 'x-clone/cover-images',
-      resource_type: 'image',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-      transformation: [
-        { width: 1500, height: 500, crop: 'fill' },
-        { quality: 'auto:good' },
-        { fetch_format: 'auto' }
-      ],
-    } as any,
-  }),
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed for cover images.'));
-    }
-  },
+// // Cover image upload
+// export const uploadCoverImage = multer({
+//   storage: new CloudinaryStorage({
+//     cloudinary,
+//     params: {
+//       folder: 'x-clone/cover-images',
+//       resource_type: 'image',
+//       allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+//       transformation: [
+//         { width: 1500, height: 500, crop: 'fill' },
+//         { quality: 'auto:good' },
+//         { fetch_format: 'auto' }
+//       ],
+//     } as any,
+//   }),
+//   fileFilter: (req, file, cb) => {
+//     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+//     if (allowedTypes.includes(file.mimetype)) {
+//       cb(null, true);
+//     } else {
+//       cb(new Error('Only image files are allowed for cover images.'));
+//     }
+//   },
+//   limits: {
+//     fileSize: 10 * 1024 * 1024, // 10MB limit for cover images
+//   },
+// }).single('coverImage');
+
+export const uploadProfileFiles = multer({
+   storage:storage,
+  fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit for cover images
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 2
   },
-}).single('coverImage');
+}).fields([
+  { name: 'profilePicture', maxCount: 1 },
+  { name: 'coverImage', maxCount: 1 }
+]);
 
 // Media upload handler for posts
 export const uploadMediaHandler = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -226,86 +238,6 @@ export const uploadMultipleMediaHandler = async (req: AuthenticatedRequest, res:
   }
 };
 
-// Profile picture upload handler
-export const uploadProfilePictureHandler = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ 
-        success: false,
-        error: 'Unauthorized - Authentication required' 
-      });
-      return;
-    }
-
-    if (!req.file) {
-      res.status(400).json({ 
-        success: false,
-        error: 'No profile picture provided' 
-      });
-      return;
-    }
-
-    console.info(`Profile picture uploaded by user ${req.user.userId}: ${req.file.path}`);
-
-    res.status(200).json({
-      success: true,
-      message: 'Profile picture uploaded successfully',
-      data: {
-        profilePictureUrl: req.file.path,
-        uploadedBy: req.user.userId,
-        uploadedAt: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    console.error('Profile picture upload error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to upload profile picture',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-};
-
-// Cover image upload handler
-export const uploadCoverImageHandler = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ 
-        success: false,
-        error: 'Unauthorized - Authentication required' 
-      });
-      return;
-    }
-
-    if (!req.file) {
-      res.status(400).json({ 
-        success: false,
-        error: 'No cover image provided' 
-      });
-      return;
-    }
-
-    console.info(`Cover image uploaded by user ${req.user.userId}: ${req.file.path}`);
-
-    res.status(200).json({
-      success: true,
-      message: 'Cover image uploaded successfully',
-      data: {
-        coverImageUrl: req.file.path,
-        uploadedBy: req.user.userId,
-        uploadedAt: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    console.error('Cover image upload error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to upload cover image',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-};
-
 // Delete media from Cloudinary
 export const deleteMedia = async (publicId: string): Promise<boolean> => {
   try {
@@ -346,6 +278,21 @@ export const validateMediaFile = (file: Express.Multer.File): { isValid: boolean
   }
 
   return { isValid: true };
+};
+
+export const extractPublicId = (url: string): string | null => {
+  try {
+    const urlParts = url.split('/');
+    const uploadIndex = urlParts.findIndex(part => part === 'upload');
+    if (uploadIndex !== -1 && uploadIndex + 2 < urlParts.length) {
+      const publicIdWithExtension = urlParts.slice(uploadIndex + 2).join('/');
+      return publicIdWithExtension.replace(/\.[^/.]+$/, '');
+    }
+    return null;
+  } catch (error) {
+    console.error('Error extracting public ID:', error);
+    return null;
+  }
 };
 
 // Export types for use in other files

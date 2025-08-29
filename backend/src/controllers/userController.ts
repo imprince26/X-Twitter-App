@@ -6,90 +6,232 @@ import { Mute } from '../models/muteModel';
 import { Post } from '../models/postModel';
 import { Notification } from '../models/notificationModel';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { uploadMultipleMediaHandler, deleteMedia,extractPublicId } from '../services/media';
+
 
 // Get user profile
-export const getUserProfile = async (req: Request, res: Response) => {
+export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const { username } = req.params;
     const currentUserId = (req as AuthenticatedRequest).userId;
 
-    const user = await User.findOne({ username }).select('-password -email -passwordResetToken -emailVerificationToken');
+    const user = await User.findOne({ username })
+      .select('-password -emailVerificationCode -passwordResetCode -twoFactorSecret -loginAttempts -lockUntil');
     
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+      return;
+    }
+
+    // Check if user is active and not suspended
+    if (!user.isActive || user.isSuspended) {
+      res.status(403).json({ 
+        success: false,
+        message: 'User account is not available' 
+      });
+      return;
     }
 
     // Check if current user is blocked by this user
-    if (currentUserId) {
+    if (currentUserId && currentUserId !== user._id.toString()) {
       const isBlocked = await Block.findOne({ 
         blocker: user._id, 
         blocked: currentUserId 
       });
       
       if (isBlocked) {
-        return res.status(403).json({ message: 'You are blocked by this user' });
+        res.status(403).json({ 
+          success: false,
+          message: 'You are blocked by this user' 
+        });
+        return;
       }
     }
 
     // Check follow status
     let isFollowing = false;
     let isFollowedBy = false;
+    let isBlocking = false;
+    let isMuted = false;
     
     if (currentUserId && currentUserId !== user._id.toString()) {
-      const followStatus = await Follow.findOne({ 
-        follower: currentUserId, 
-        following: user._id 
-      });
-      isFollowing = !!followStatus;
+      const [followStatus, followedByStatus, blockStatus, muteStatus] = await Promise.all([
+        Follow.findOne({ follower: currentUserId, following: user._id }),
+        Follow.findOne({ follower: user._id, following: currentUserId }),
+        Block.findOne({ blocker: currentUserId, blocked: user._id }),
+        Mute.findOne({ muter: currentUserId, muted: user._id, type: 'user' })
+      ]);
 
-      const followedByStatus = await Follow.findOne({ 
-        follower: user._id, 
-        following: currentUserId 
-      });
+      isFollowing = !!followStatus;
       isFollowedBy = !!followedByStatus;
+      isBlocking = !!blockStatus;
+      isMuted = !!muteStatus;
     }
 
-    res.json({
-      user,
-      isFollowing,
-      isFollowedBy
+    res.status(200).json({
+      success: true,
+      data: {
+        user,
+        relationship: {
+          isFollowing,
+          isFollowedBy,
+          isBlocking,
+          isMuted,
+          isSelf: currentUserId === user._id.toString()
+        }
+      }
     });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error });
+  } catch (error: any) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to get user profile',
+      error: error.message
+    });
   }
 };
 
 // Update user profile
-export const updateUserProfile = async (req: Request, res: Response) => {
+export const updateUserProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const { name, bio, location, website, profilePicture, coverImage } = req.body;
+    const { name, bio, location, website, theme, language, timezone } = req.body;
+    
+    // Find the current user
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+      return;
+    }
 
-    const user = await User.findByIdAndUpdate(
+    // Handle file uploads
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    let profilePictureUrl = user.profilePicture;
+    let coverImageUrl = user.coverImage;
+
+    // Handle profile picture upload
+    if (files?.profilePicture && files.profilePicture[0]) {
+      // Delete existing profile picture if it exists
+      if (user.profilePicture) {
+        const publicId = extractPublicId(user.profilePicture);
+        if (publicId) {
+          await deleteMedia(publicId);
+        }
+      }
+      
+      // Set new profile picture URL
+      profilePictureUrl = files.profilePicture[0].path;
+    }
+console.log(files)
+    // Handle cover image upload
+    if (files?.coverImage && files.coverImage[0]) {
+      // Delete existing cover image if it exists
+      if (user.coverImage) {
+        const publicId = extractPublicId(user.coverImage);
+        if (publicId) {
+          await deleteMedia(publicId);
+        }
+      }
+      
+      // Set new cover image URL
+      coverImageUrl = files.coverImage[0].path;
+    }
+    console.log(coverImageUrl)
+
+    // Prepare update data
+    const updateData: any = {
+      profilePicture: profilePictureUrl,
+      coverImage: coverImageUrl
+    };
+
+    // Add other fields if provided
+    if (name !== undefined) updateData.name = name;
+    if (bio !== undefined) updateData.bio = bio;
+    if (location !== undefined) updateData.location = location;
+    if (website !== undefined) updateData.website = website;
+    if (theme !== undefined) updateData.theme = theme;
+    if (language !== undefined) updateData.language = language;
+    if (timezone !== undefined) updateData.timezone = timezone;
+console.log("update data:",updateData)
+    // Update user profile
+    const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { name, bio, location, website, profilePicture, coverImage },
-      { new: true, runValidators: true }
-    ).select('-password');
+      updateData,
+      { 
+        new: true, 
+        runValidators: true 
+      }
+    ).select('-password -emailVerificationCode -passwordResetToken -twoFactorSecret -loginAttempts -lockUntil');
 
-    res.json({ user });
-  } catch (error) {
-    res.status(400).json({ message: 'Update failed', error });
+    if (!updatedUser) {
+      res.status(404).json({ 
+        success: false,
+        message: 'Failed to update user profile' 
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: updatedUser
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Update user profile error:', error);
+    
+    // If there was an error, try to clean up any uploaded files
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    if (files?.profilePicture && files.profilePicture[0]) {
+      const publicId = extractPublicId(files.profilePicture[0].path);
+      if (publicId) {
+        await deleteMedia(publicId);
+      }
+    }
+    if (files?.coverImage && files.coverImage[0]) {
+      const publicId = extractPublicId(files.coverImage[0].path);
+      if (publicId) {
+        await deleteMedia(publicId);
+      }
+    }
+
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to update user profile',
+      error: error.message
+    });
   }
 };
 
 // Follow user
-export const followUser = async (req: Request, res: Response) => {
+export const followUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const { username } = req.params;
 
     const userToFollow = await User.findOne({ username });
     if (!userToFollow) {
-      return res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+      return;
     }
 
     if (userId === userToFollow._id.toString()) {
-      return res.status(400).json({ message: 'You cannot follow yourself' });
+      res.status(400).json({ 
+        success: false,
+        message: 'You cannot follow yourself' 
+      });
+      return;
     }
 
     // Check if already following
@@ -99,7 +241,11 @@ export const followUser = async (req: Request, res: Response) => {
     });
     
     if (existingFollow) {
-      return res.status(400).json({ message: 'Already following this user' });
+      res.status(400).json({ 
+        success: false,
+        message: 'Already following this user' 
+      });
+      return;
     }
 
     // Check if blocked
@@ -111,38 +257,58 @@ export const followUser = async (req: Request, res: Response) => {
     });
     
     if (isBlocked) {
-      return res.status(403).json({ message: 'Cannot follow this user' });
+      res.status(403).json({ 
+        success: false,
+        message: 'Cannot follow this user' 
+      });
+      return;
     }
 
     // Create follow relationship
     await Follow.create({ follower: userId, following: userToFollow._id });
 
     // Update follower counts
-    await User.findByIdAndUpdate(userId, { $inc: { followingCount: 1 } });
-    await User.findByIdAndUpdate(userToFollow._id, { $inc: { followersCount: 1 } });
+    await Promise.all([
+      User.findByIdAndUpdate(userId, { $inc: { followingCount: 1 } }),
+      User.findByIdAndUpdate(userToFollow._id, { $inc: { followersCount: 1 } })
+    ]);
 
-    // Create notification
-    await Notification.create({
-      recipient: userToFollow._id,
-      sender: userId,
-      type: 'follow'
+    // Create notification (only if user is not private or already following back)
+    if (!userToFollow.isPrivate) {
+      await Notification.create({
+        recipient: userToFollow._id,
+        sender: userId,
+        type: 'follow'
+      });
+    }
+
+    res.status(200).json({ 
+      success: true,
+      message: 'User followed successfully' 
     });
-
-    res.json({ message: 'User followed successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error });
+  } catch (error: any) {
+    console.error('Follow user error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to follow user',
+      error: error.message
+    });
   }
 };
 
 // Unfollow user
-export const unfollowUser = async (req: Request, res: Response) => {
+export const unfollowUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const { username } = req.params;
 
     const userToUnfollow = await User.findOne({ username });
     if (!userToUnfollow) {
-      return res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+      return;
     }
 
     const follow = await Follow.findOneAndDelete({ 
@@ -151,18 +317,96 @@ export const unfollowUser = async (req: Request, res: Response) => {
     });
     
     if (!follow) {
-      return res.status(400).json({ message: 'Not following this user' });
+      res.status(400).json({ 
+        success: false,
+        message: 'Not following this user' 
+      });
+      return;
     }
 
     // Update follower counts
-    await User.findByIdAndUpdate(userId, { $inc: { followingCount: -1 } });
-    await User.findByIdAndUpdate(userToUnfollow._id, { $inc: { followersCount: -1 } });
+    await Promise.all([
+      User.findByIdAndUpdate(userId, { $inc: { followingCount: -1 } }),
+      User.findByIdAndUpdate(userToUnfollow._id, { $inc: { followersCount: -1 } })
+    ]);
 
-    res.json({ message: 'User unfollowed successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error });
+    res.status(200).json({ 
+      success: true,
+      message: 'User unfollowed successfully' 
+    });
+  } catch (error: any) {
+    console.error('Unfollow user error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to unfollow user',
+      error: error.message
+    });
   }
 };
+
+// Block user
+export const blockUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const { username } = req.params;
+
+    const userToBlock = await User.findOne({ username });
+    if (!userToBlock) {
+      res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+      return;
+    }
+
+    if (userId === userToBlock._id.toString()) {
+      res.status(400).json({ 
+        success: false,
+        message: 'You cannot block yourself' 
+      });
+      return;
+    }
+
+    // Check if already blocked
+    const existingBlock = await Block.findOne({ 
+      blocker: userId, 
+      blocked: userToBlock._id 
+    });
+    
+    if (existingBlock) {
+      res.status(400).json({ 
+        success: false,
+        message: 'User already blocked' 
+      });
+      return;
+    }
+
+    // Create block
+    await Block.create({ blocker: userId, blocked: userToBlock._id });
+
+    // Remove follow relationships
+    await Promise.all([
+      Follow.findOneAndDelete({ follower: userId, following: userToBlock._id }),
+      Follow.findOneAndDelete({ follower: userToBlock._id, following: userId }),
+      // Update follower counts
+      User.findByIdAndUpdate(userId, { $inc: { followingCount: -1 } }),
+      User.findByIdAndUpdate(userToBlock._id, { $inc: { followersCount: -1 } })
+    ]);
+
+    res.status(200).json({ 
+      success: true,
+      message: 'User blocked successfully' 
+    });
+  } catch (error: any) {
+    console.error('Block user error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to block user',
+      error: error.message
+    });
+  }
+};
+
 
 // Get user followers
 export const getUserFollowers = async (req: Request, res: Response) => {
@@ -227,44 +471,6 @@ export const getUserFollowing = async (req: Request, res: Response) => {
         pages: Math.ceil(total / limit)
       }
     });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error });
-  }
-};
-
-// Block user
-export const blockUser = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as AuthenticatedRequest).userId;
-    const { username } = req.params;
-
-    const userToBlock = await User.findOne({ username });
-    if (!userToBlock) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    if (userId === userToBlock._id.toString()) {
-      return res.status(400).json({ message: 'You cannot block yourself' });
-    }
-
-    // Check if already blocked
-    const existingBlock = await Block.findOne({ 
-      blocker: userId, 
-      blocked: userToBlock._id 
-    });
-    
-    if (existingBlock) {
-      return res.status(400).json({ message: 'User already blocked' });
-    }
-
-    // Create block
-    await Block.create({ blocker: userId, blocked: userToBlock._id });
-
-    // Remove follow relationships
-    await Follow.findOneAndDelete({ follower: userId, following: userToBlock._id });
-    await Follow.findOneAndDelete({ follower: userToBlock._id, following: userId });
-
-    res.json({ message: 'User blocked successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }

@@ -267,3 +267,88 @@ export const useResendVerification = () => {
     },
   });
 };
+
+// Update user profile
+export const useUpdateProfile = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (data: UpdateProfileData) => {
+      const response = await api.put('/user/profile', data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      // Update user cache
+      queryClient.setQueryData(['user'], data.data.user);
+      // Invalidate user profile queries
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+    },
+  });
+};
+
+// Upload profile picture
+export const useUploadProfilePicture = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (file: File | FormData) => {
+      const formData = new FormData();
+      if (file instanceof File) {
+        formData.append('profilePicture', file);
+      } else {
+        // If already FormData, use it directly
+        return await api.post('/user/profile/picture', file, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+      
+      const response = await api.post('/user/profile/picture', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['user'], data.data.user);
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+    },
+  });
+};
+
+// Upload cover image
+export const useUploadCoverImage = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (file: File | FormData) => {
+      const formData = new FormData();
+      if (file instanceof File) {
+        formData.append('coverImage', file);
+      } else {
+        return await api.post('/user/profile/cover', file, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+      
+      const response = await api.post('/user/profile/cover', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['user'], data.data.user);
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+    },
+  });
+};
+
+// Get user profile by username
+export const useUserProfile = (username: string) => {
+  return useQuery({
+    queryKey: ['userProfile', username],
+    queryFn: async () => {
+      const response = await api.get(`/user/${username}`);
+      return response.data;
+    },
+    enabled: !!username,
+  });
+};

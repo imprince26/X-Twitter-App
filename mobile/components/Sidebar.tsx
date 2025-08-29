@@ -12,7 +12,6 @@ import { useRouter } from 'expo-router'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { api } from '../utils/api';
 import { useColorScheme } from 'nativewind';
 import { useUser } from '@/hooks/useAuth';
 
@@ -27,13 +26,12 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ children, closeDrawer, isDrawerOpen }) => {
   const { colorScheme, toggleColorScheme } = useColorScheme();
-  const { data: userData } = useUser()
+  const { data: user } = useUser()
   const isDark = colorScheme === 'dark';
   const translateX = useSharedValue(-DRAWER_WIDTH);
   const router = useRouter()
   const queryClient = useQueryClient()
 
-  const user = userData?.user
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -118,9 +116,9 @@ const Sidebar: React.FC<SidebarProps> = ({ children, closeDrawer, isDrawerOpen }
         >
           {/* User Section */}
           <View className="p-5">
-            {user?.avatar ? (
+            {user?.profilePicture ? (
               <Image
-                source={{ uri: user.avatar }}
+                source={{ uri: user.profilePicture }}
                 className="w-14 h-14 rounded-full"
               />
             ) : (

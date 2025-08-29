@@ -87,7 +87,7 @@ export const authenticate = async (
         });
         return;
       }
-
+      req.userId = user._id.toString();
       req.user = user;
 
       next();

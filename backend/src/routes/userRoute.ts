@@ -17,6 +17,7 @@ import {
 } from '../controllers/userController';
 import { authenticate } from '../middleware/auth';
 import { rateLimiter } from '../middleware/rateLimiter';
+import { uploadProfileFiles } from '../services/media';
 
 const router = Router();
 
@@ -27,8 +28,8 @@ router.get('/:username/posts', getUserPosts);
 router.get('/:username/followers', getUserFollowers);
 router.get('/:username/following', getUserFollowing);
 
-// Protected routes
-router.put('/profile', authenticate, rateLimiter, updateUserProfile);
+// Protected routes - Single endpoint for all profile updates
+router.put('/profile', authenticate, rateLimiter,uploadProfileFiles, updateUserProfile);
 router.post('/:username/follow', authenticate, rateLimiter, followUser);
 router.delete('/:username/follow', authenticate, rateLimiter, unfollowUser);
 router.post('/:username/block', authenticate, rateLimiter, blockUser);
