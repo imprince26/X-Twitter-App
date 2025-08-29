@@ -267,9 +267,9 @@ const Home = () => {
   const HeaderComponent = () => (
     <View className={`flex flex-row justify-between items-center px-4 py-4 ${isDark ? 'bg-black' : 'bg-white'}`}>
       <TouchableOpacity onPress={openDrawer}>
-        {user?.avatar ? (
+        {user?.profilePicture ? (
           <Image
-            source={{ uri: user.avatar }}
+            source={{ uri: user.profilePicture }}
             className="w-8 h-8 rounded-full"
           />
         ) : (

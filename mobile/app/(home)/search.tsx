@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, Image } from 'react-native'
 import React, { useState } from 'react'
 import { useColorScheme } from 'nativewind'
 import { AntDesign } from '@expo/vector-icons'
+import Feather from '@expo/vector-icons/Feather';
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useUser } from '@/hooks/useAuth'
 import Sidebar from '@/components/Sidebar';
@@ -12,21 +13,13 @@ const Search = () => {
   const { data: user } = useUser()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  const openDrawer = () => {
-    setIsDrawerOpen(true);
-  };
-
-  const closeDrawer = () => {
-    setIsDrawerOpen(false);
-  };
-
   return (
     <Sidebar isDrawerOpen={isDrawerOpen} closeDrawer={() => setIsDrawerOpen(false)}>
       <View className={`flex-1 ${isDark ? 'bg-black' : 'bg-white'}`}>
 
         {/* Header */}
         <View className='flex-row items-center justify-between px-4 py-4 border-b border-gray-200 dark:border-gray-800'>
-          <TouchableOpacity onPress={openDrawer}>
+          <TouchableOpacity onPress={() => setIsDrawerOpen(true)}>
             {user?.profilePicture ? (
               <Image
                 source={{ uri: user.profilePicture }}
@@ -37,6 +30,9 @@ const Search = () => {
                 <AntDesign name="user" size={20} color={isDark ? 'white' : 'black'} />
               </View>
             )}
+          </TouchableOpacity>
+          <TouchableOpacity>
+            <Feather name="settings" size={24} color={isDark ? 'white' : 'black'} />
           </TouchableOpacity>
         </View>
 
